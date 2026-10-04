@@ -30,7 +30,7 @@
   const APLAB = { c: 'Characters and droids', s: 'Species', l: 'Places', o: 'Groups', e: 'Events' };
 
   /* ---------- data ---------- */
-  const DATA_V = 'v2';
+  const DATA_V = 'v3';
   let ready = false, loadErr = '', loading = false, progress = '';
   let META = null, ITEMS = [], BYID = [], BYTITLE = new Map(), APPEARS = new Map(), BYKIND = {};
 
@@ -90,7 +90,7 @@
 
   /* ---------- shared bits ---------- */
   const ST = { kind: 'char', q: '', filters: {}, shown: 40, detail: null, stack: [], from: '', more: {} };
-  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: true }, era: -1, char: null, q: '', order: 'universe', shown: 80 };
+  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: false }, era: -1, char: null, q: '', order: 'universe', shown: 80, mode: 'overview', open: new Set() };
 
   function title() { return ST.detail != null && BYID[ST.detail] ? BYID[ST.detail].n || BYID[ST.detail].t : 'The Holopedia'; }
   function hasDetail() { return ST.detail != null; }
@@ -279,14 +279,16 @@
     const wrap = h('div', { class: 'wrap' });
     if (!e) { ST.detail = null; return viewIndex(); }
     const head = panel(e.n || e.t,
-      h('div', { class: 'facts' }, h('span', null, (e.k === 'media' ? MLAB[e.m] : KLAB[e.k])), e.k === 'media' && e.s ? h('span', null, e.s) : null,
+      h('div', { class: 'facts' }, e.k === 'media' ? badge(e.m) : null, h('span', null, (e.k === 'media' ? MLAB[e.m] : KLAB[e.k])), e.k === 'media' && e.s ? h('span', null, e.s) : null,
         e.y ? h('span', null, yrs(e.y)) : null, e.b != null ? h('span', null, 'Born ' + fy(e.b)) : null, e.d != null && e.k === 'char' ? h('span', null, 'Died ' + fy(e.d)) : null,
         e.r ? h('span', null, 'Released ' + e.r) : null),
       e.a && e.a.length ? h('p', { class: 'sub', style: 'margin:6px 0 0' }, 'Also known as: ' + e.a.join(', ')) : null,
       e.x ? h('p', { style: 'margin:10px 0' }, e.x) : null,
       e.er && e.er.length ? h('div', { class: 'chips wrapchips' }, e.er.map((n) => h('span', { class: 'tag' }, ERA()[n]))) : null,
       h('div', { class: 'btns', style: 'margin-top:10px' },
-        h('a', { class: 'btn sm', href: wookie(e), target: '_blank', rel: 'noopener noreferrer' }, 'Open on Wookieepedia')));
+        h('a', { class: 'btn sm', href: wookie(e), target: '_blank', rel: 'noopener noreferrer' }, 'Wookieepedia'),
+        e.k === 'media' || e.k === 'event' ? h('a', { class: 'btn sm', href: wikiSearch(e), target: '_blank', rel: 'noopener noreferrer' }, 'Wikipedia') : null,
+        e.k === 'media' && (e.m === 'film' || e.m === 'tv') ? h('a', { class: 'btn sm', href: imdbSearch(e), target: '_blank', rel: 'noopener noreferrer' }, 'IMDb') : null));
     wrap.append(head);
 
     const rows = FACTS.filter(([f]) => e[f] && e[f].length).map(([f, label]) =>
@@ -308,70 +310,139 @@
   }
 
   /* ---------- Timeline ---------- */
+  const BADGE = { film: ['M', 'Movie'], tv: ['T', 'TV show'], comic: ['C', 'Comic'], book: ['B', 'Book'], story: ['S', 'Short story'], game: ['G', 'Game'], event: ['E', 'Event'] };
+  const TYPE_RANK = { film: 0, tv: 1, event: 2, game: 3, comic: 4, book: 5, story: 6 };
+  const ERA_LO = [-1e9, -25000, -500, -100, -19, 0, 5, 34];
+  const eraOf = (y) => { let n = 0; ERA_LO.forEach((lo, i) => { if (y >= lo) n = i; }); return n; };
+  const SKIP_TITLE = /trilogy|star wars saga|film series|^untitled/i;
+  const tkey = (e) => (e.k === 'event' ? 'event' : e.m);
+  function badge(t, count) {
+    const [ch, label] = BADGE[t] || ['?', ''];
+    return h('span', { class: 'bd ' + t, title: label, 'aria-label': label }, ch, count ? h('i', null, '×' + count) : null);
+  }
+  const extLink = (url, label) => h('a', { class: 'ext', href: url, target: '_blank', rel: 'noopener noreferrer', 'aria-label': label, title: label, onclick: (ev) => ev.stopPropagation() }, '↗');
+  const wikiSearch = (e) => 'https://en.wikipedia.org/w/index.php?search=' + encodeURIComponent((e.n || e.t) + ' Star Wars');
+  const imdbSearch = (e) => 'https://www.imdb.com/find/?q=' + encodeURIComponent((e.n || e.t) + ' Star Wars');
+
   function viewTimeline() {
     if (!ready) { if (!loadErr) load(); return loadingView(); }
     const wrap = h('div', { class: 'wrap' });
     const out = h('div', { class: 'tl' });
     const count = h('p', { class: 'sub', style: 'margin:0' });
     const input = h('input', { type: 'search', placeholder: 'Search titles or series', 'aria-label': 'Search the timeline', value: TS.q, autocomplete: 'off' });
-    const typeChips = h('div', { class: 'chips wrapchips' }, [...Object.keys(MLAB), 'event'].map((t) =>
-      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; TS.focus = null; DP.render(); } }, t === 'event' ? 'Events' : (t === 'story' ? 'Stories' : MLAB[t] + 's'))));
+    const rerender = () => { TS.focus = null; DP.render(); };
+    const typeChips = h('div', { class: 'chips wrapchips' }, ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'].map((t) =>
+      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; rerender(); } }, badge(t), ' ' + BADGE[t][1] + (t === 'tv' ? 's' : 's'))));
+    const modeChips = h('div', { class: 'chips' }, [['overview', 'Overview'], ['all', 'Every episode & issue']].map(([m, l]) =>
+      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(TS.mode === m), onclick: () => { TS.mode = m; rerender(); } }, l)));
     const eraSel = DP.selectEl([{ v: -1, t: 'All eras' }].concat(ERA().map((n, i) => ({ v: i, t: n }))), TS.era, (v) => { TS.era = +v; TS.focus = null; build(); }, { 'aria-label': 'Era' });
-    const orderBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => { TS.order = TS.order === 'universe' ? 'release' : 'universe'; TS.focus = null; DP.render(); } },
+    const orderBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => { TS.order = TS.order === 'universe' ? 'release' : 'universe'; rerender(); } },
       TS.order === 'universe' ? 'Order: story time' : 'Order: release date');
-    const charBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; TS.focus = null; DP.render(); }, 'Search characters') },
+    const charBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; rerender(); }, 'Search characters') },
       TS.char != null ? 'Character: ' + (BYID[TS.char].n || BYID[TS.char].t) + '  ×' : 'Pick a character');
-    if (TS.char != null) charBtn.onclick = () => { TS.char = null; TS.focus = null; DP.render(); };
+    if (TS.char != null) charBtn.onclick = () => { TS.char = null; rerender(); };
+
+    const uni = () => TS.order === 'universe';
+    const keyYear = (m) => (uni() ? m.y[0] : +m.r.slice(0, 4));
+    const cmp = (a, b) => uni()
+      ? a.y[0] - b.y[0] || (TYPE_RANK[tkey(a)] - TYPE_RANK[tkey(b)]) || (a.r || '').localeCompare(b.r || '') || a.t.localeCompare(b.t)
+      : a.r.localeCompare(b.r) || (TYPE_RANK[tkey(a)] - TYPE_RANK[tkey(b)]) || a.t.localeCompare(b.t);
+
+    function itemRow(m, nested) {
+      const sub = [m.k === 'event' ? '' : (m.s && TS.mode === 'all' ? m.s : ''), uni() ? fy(m.y[0]) : (m.r || '').slice(0, 4)].filter(Boolean).join(' · ');
+      const row = h('div', { class: 'trow' + (nested ? ' nested' : '') + (m.t === 'Star Wars: Episode I The Phantom Menace' ? ' tlstart' : '') },
+        h('button', { class: 'crow slim', type: 'button', onclick: () => { TS.focus = m.i; open(m.i, 'timeline'); } },
+          badge(tkey(m)), h('span', { class: 'tt' }, h('strong', null, m.n || m.t), sub ? h('span', { class: 'sub' }, sub) : null)),
+        extLink(wookie(m), 'Open ' + (m.n || m.t) + ' on Wookieepedia'));
+      return row;
+    }
+
+    function groups(dated) {
+      // overview: collapse series into one row; clusters split where a series jumps more than 3 years
+      const by = new Map(); const solo = [];
+      dated.forEach((m) => {
+        if (m.k === 'event' || m.m === 'film' || !m.s) { solo.push({ items: [m], start: m }); return; }
+        const k = m.m + '|' + m.s; if (!by.has(k)) by.set(k, []); by.get(k).push(m);
+      });
+      const gs = solo;
+      by.forEach((arr, k) => {
+        arr.sort(cmp);
+        let cur = [];
+        arr.forEach((m) => {
+          const prev = cur[cur.length - 1];
+          if (prev && Math.abs(m.y[0] - prev.y[0]) > 3 && uni()) { gs.push({ items: cur, start: cur[0], series: arr[0].s }); cur = []; }
+          cur.push(m);
+        });
+        if (cur.length) gs.push({ items: cur, start: cur[0], series: arr[0].s });
+      });
+      gs.forEach((g) => { if (g.items.length === 1) g.series = null; });
+      gs.sort((a, b) => cmp(a.start, b.start));
+      return gs;
+    }
+
+    function groupRow(g) {
+      const first = g.items[0], t = tkey(first);
+      const yr = uni() ? yrs([Math.min(...g.items.map((i) => i.y[0])), Math.max(...g.items.map((i) => i.y[0]))]) : '';
+      const n = g.items.length;
+      const kids = h('div', { class: 'tkids', hidden: true });
+      const key = t + '|' + g.series + '|' + first.i;
+      const btn = h('button', { class: 'crow slim', type: 'button', 'aria-expanded': 'false' },
+        badge(t, n), h('span', { class: 'tt' }, h('strong', null, g.series), h('span', { class: 'sub' }, [n + (t === 'tv' ? ' episodes' : t === 'comic' ? ' issues' : ' entries'), yr].filter(Boolean).join(' · '))), h('span', { class: 'caret' }, '▾'));
+      const toggle = () => {
+        const open_ = kids.hidden;
+        if (open_ && !kids.childNodes.length) g.items.forEach((m) => kids.append(itemRow(m, true)));
+        kids.hidden = !open_; btn.setAttribute('aria-expanded', String(open_)); btn.classList.toggle('open', open_);
+        if (open_) TS.open.add(key); else TS.open.delete(key);
+      };
+      btn.onclick = toggle;
+      const row = h('div', { class: 'tgroup' }, h('div', { class: 'trow' }, btn, extLink(wookie({ t: g.series }), 'Open ' + g.series + ' on Wookieepedia')), kids);
+      if (TS.open.has(key)) toggle();
+      return row;
+    }
 
     function build() {
       TS.q = input.value;
       const q = input.value.trim().toLowerCase(), toks = q.split(/\s+/).filter(Boolean);
       let items = [];
-      (BYKIND.media || []).forEach((m) => { if (TS.types[m.m]) items.push(m); });
+      (BYKIND.media || []).forEach((m) => { if (TS.types[m.m] && !SKIP_TITLE.test(m.t)) items.push(m); });
       if (TS.types.event && TS.char == null) (BYKIND.event || []).forEach((m) => items.push(m));
       if (TS.char != null) { const ok = new Set(APPEARS.get(TS.char) || []); items = items.filter((m) => ok.has(m.i)); }
       if (toks.length) items = items.filter((m) => toks.every((t) => (m._key + ' ' + (m.s || '').toLowerCase()).indexOf(t) >= 0));
       if (TS.era >= 0) items = items.filter((m) => m.er && m.er.indexOf(TS.era) >= 0);
       let dated, undated;
-      if (TS.order === 'universe') {
-        dated = items.filter((m) => m.y); undated = items.length - dated.length;
-        dated.sort((a, b) => a.y[0] - b.y[0] || a.y[1] - b.y[1] || (a.r || '').localeCompare(b.r || '') || a.t.localeCompare(b.t));
-      } else {
-        dated = items.filter((m) => m.r && m.k === 'media'); undated = items.length - dated.length;
-        dated.sort((a, b) => a.r.localeCompare(b.r) || a.t.localeCompare(b.t));
-      }
-      count.textContent = dated.length.toLocaleString() + ' on the timeline' + (undated ? ', ' + undated.toLocaleString() + ' without a ' + (TS.order === 'universe' ? 'story date' : 'release date') : '');
+      if (uni()) { dated = items.filter((m) => m.y); }
+      else { dated = items.filter((m) => m.r && m.k === 'media'); }
+      undated = items.length - dated.length;
+      dated.sort(cmp);
+      const list = TS.mode === 'overview' ? groups(dated) : dated.map((m) => ({ items: [m], start: m }));
+      count.textContent = (TS.mode === 'overview' ? list.length.toLocaleString() + ' entries (' + dated.length.toLocaleString() + ' episodes, issues and more)' : dated.length.toLocaleString() + ' entries') +
+        (undated ? ', ' + undated.toLocaleString() + ' without a ' + (uni() ? 'story date' : 'release date') : '');
       out.replaceChildren();
-      let lastHead = '', anchor = null, focusEl = null;
-      const uni = TS.order === 'universe';
-      const pm = (BYKIND.media || []).find((m) => m.t === 'Star Wars: Episode I The Phantom Menace');
-      const pivot = uni ? -32 : 1999;
-      dated.forEach((m) => {
-        const key = uni ? m.y[0] : +m.r.slice(0, 4);
-        const head = uni ? fy(m.y[0]) : m.r.slice(0, 4);
-        if (head !== lastHead) {
-          const hd = h('div', { class: 'tlhead' }, head); out.append(hd); lastHead = head;
-          if (!anchor && key >= pivot) anchor = hd;
-        }
-        const row = h('button', { class: 'crow slim tlrow', type: 'button', onclick: () => { TS.focus = m.i; open(m.i, 'timeline'); } },
-          h('strong', null, m.n || m.t),
-          h('span', { class: 'sub' }, [m.k === 'event' ? 'Event' : MLAB[m.m], m.s, uni ? (m.r ? m.r.slice(0, 4) + ' release' : '') : yrs(m.y)].filter(Boolean).join(' · ')));
-        if (TS.focus === m.i) focusEl = row;
-        if (pm && m.i === pm.i && uni) { row.classList.add('tlstart'); }
-        out.append(row);
+      let lastHead = '', lastEra = -1, anchor = null, focusEl = null;
+      list.forEach((g) => {
+        const m = g.start, key = keyYear(m);
+        if (uni()) { const en = eraOf(m.y[0]); if (en !== lastEra) { out.append(h('div', { class: 'tlera' }, ERA()[en])); lastEra = en; } }
+        const head = uni() ? fy(m.y[0]) : m.r.slice(0, 4);
+        if (head !== lastHead) { out.append(h('div', { class: 'tlhead' }, head)); lastHead = head; }
+        const el = g.series ? groupRow(g) : itemRow(m);
+        if (!anchor && m.t === 'Star Wars: Episode I The Phantom Menace' && uni()) anchor = out.lastChild.previousSibling && out.lastChild.previousSibling.classList.contains('tlhead') ? out.lastChild.previousSibling : null;
+        out.append(el);
+        if (!anchor && !uni() && key >= 1999) anchor = out.querySelector('.tlhead:last-of-type');
+        if (TS.focus != null && g.items.some((i) => i.i === TS.focus)) focusEl = el;
       });
+      if (!anchor && uni()) { const hs = out.querySelectorAll('.tlhead'); hs.forEach((hd) => { if (!anchor && /BBY|ABY/.test(hd.textContent)) { const y = parseInt(hd.textContent, 10) * (/BBY/.test(hd.textContent) ? -1 : 1); if (y >= -32) anchor = hd; } }); }
       const target = focusEl || anchor;
-      if (target && !TS.noScroll) setTimeout(() => { try { target.scrollIntoView({ block: 'start' }); } catch (e) {} }, 30);
-      TS.noScroll = false;
-      if (dated.length) out.append(h('div', { class: 'tlfab' },
-        h('button', { class: 'btn sm', type: 'button', onclick: () => wrap.scrollIntoView({ block: 'start' }) }, '\u2191 Filters'),
-        anchor ? h('button', { class: 'btn sm', type: 'button', onclick: () => anchor.scrollIntoView({ block: 'start' }) }, '\u2605 Episode I') : null));
-      if (!dated.length) out.append(h('p', { class: 'empty' }, 'Nothing matches those filters.'));
+      if (target) setTimeout(() => { try { target.scrollIntoView({ block: 'start' }); } catch (e) {} }, 30);
+      if (list.length) out.append(h('div', { class: 'tlfab' },
+        h('button', { class: 'btn sm', type: 'button', onclick: () => wrap.scrollIntoView({ block: 'start' }) }, '↑ Filters'),
+        anchor ? h('button', { class: 'btn sm', type: 'button', onclick: () => anchor.scrollIntoView({ block: 'start' }) }, '★ Episode I') : null));
+      if (!list.length) out.append(h('p', { class: 'empty' }, 'Nothing matches those filters.'));
     }
     input.addEventListener('input', debounce(() => { TS.focus = null; build(); }, 140));
-    wrap.append(panel('Story order',
-      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Everything in canon, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
-      input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn), count), out);
+    const legend = h('div', { class: 'tllegend' }, ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'].map((t) => h('span', null, badge(t), BADGE[t][1])));
+    wrap.append(panel('Timeline',
+      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Canon only, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
+      modeChips, input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn), count, legend), out);
     build();
     return wrap;
   }

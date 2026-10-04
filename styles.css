@@ -370,3 +370,22 @@ body.calm #app::before { display: none; }
 .tlrow.tlstart strong::after { content: ' \2605'; color: var(--amber); }
 .tlfab { position: sticky; bottom: 8px; z-index: 4; align-self: flex-end; display: flex; gap: 6px; }
 .tlfab .btn { background: var(--panel); box-shadow: 0 0 10px rgba(0,0,0,.6); }
+
+.bd { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 4px; font-family: var(--head); font-weight: 700; font-size: .78rem; color: #06121a; background: var(--bdc, #8ab); line-height: 1; }
+.bd i { font-style: normal; font-size: .62rem; font-weight: 600; opacity: .85; }
+.bd.film { --bdc: #ffc24a; } .bd.tv { --bdc: #5fd8ff; } .bd.comic { --bdc: #ff7ab8; } .bd.book { --bdc: #7ee08a; } .bd.story { --bdc: #b99cff; } .bd.game { --bdc: #ff9a55; } .bd.event { --bdc: #ff6a5f; }
+.chip .bd { min-width: 18px; height: 18px; font-size: .68rem; vertical-align: middle; margin-right: 2px; }
+.trow { display: flex; align-items: stretch; gap: 0; }
+.trow .crow { flex-direction: row; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.trow .tt { display: flex; flex-direction: column; min-width: 0; gap: 1px; flex: 1; }
+.trow .caret { margin-left: auto; color: var(--amber); transition: transform .15s; }
+.trow .crow.open .caret { transform: rotate(180deg); }
+.ext { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; border: 1px solid var(--line-2, var(--line)); border-left: 0; color: var(--holo); background: var(--panel); text-decoration: none; font-size: 1.05rem; }
+.tkids { margin: 0 0 0 14px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 4px 0 4px 8px; }
+.tkids .crow { padding: 6px 8px; }
+.tlera { margin-top: 10px; padding: 6px 10px; border-left: 3px solid var(--amber); background: rgba(var(--holo-rgb), .08); color: var(--text); font-family: var(--head); letter-spacing: .12em; text-transform: uppercase; font-size: .8rem; }
+.tllegend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: .78rem; color: var(--muted); }
+.tllegend span { display: inline-flex; align-items: center; gap: 4px; }
+.tlhead { scroll-margin-top: 0; }
+.tlrow, .tlrow.tlstart strong::after { content: none; }
+.trow.tlstart strong::after { content: ' \2605'; color: var(--amber); }
