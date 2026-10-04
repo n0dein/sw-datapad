@@ -1,8 +1,8 @@
 /* Cache-first service worker so the datapad works with no signal.
    Bump VERSION whenever any file changes. */
-const VERSION = 'datapad-5';
+const VERSION = 'datapad-6';
 const FILES = [
-  './', 'index.html', 'styles.css', 'data.js', 'lore.js', 'speciesimg.js', 'planetart.js', 'rules.js', 'app.js', 'manifest.webmanifest',
+  './', 'index.html', 'styles.css', 'data.js', 'lore.js', 'speciesimg.js', 'planetimg.js', 'rules.js', 'app.js', 'manifest.webmanifest',
   'fonts/Aurebesh.otf', 'fonts/Aurebesh-Bold.otf', 'icons/icon-192.png', 'icons/icon-512.png'
 ];
 

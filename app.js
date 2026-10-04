@@ -765,7 +765,7 @@
   BUILD.notes = (c) => [panel('Notes', textBind(c, c.notes, 'general', { label: 'Anything else', rows: 12, ph: 'Backstory, session notes, plans, loose ideas.' }))];
 
   /* ---- holopedia ---- */
-  const HOLO = [['species', 'Species'], ['classes', 'Classes'], ['subclasses', 'Subclasses'], ['planets', 'Planets'], ['aurabesh', 'Aurabesh'], ['words', 'Words']];
+  const HOLO = [['species', 'Species'], ['classes', 'Classes'], ['planets', 'Planets'], ['aurabesh', 'Aurabesh'], ['words', 'Words']];
 
   function viewHolo() {
     const wrap = h('div', { class: 'wrap' });
@@ -812,9 +812,23 @@
     const sf = kind === 'species' && SI && (SI.local && SI.local[key] || SI.files[key] && SI.base + SI.files[key]);
     e.append(slot('holo:' + kind + ':' + key, { small: true, hint: 'Add a picture for this entry', fallback: kind === 'species' ? (sf || '') : classArt(kind, item) }));
     if (kind === 'species') e.append(mdBox(item.lore), expand('Traits', h('div', null, (item.traits || []).map((t) => expand(t.name, mdBox(t.description))))));
-    else if (kind === 'classes') e.append(mdBox(item.lore));
+    else if (kind === 'classes') { e.append(mdBox(item.lore)); }
     else e.append(mdBox(item.intro));
     out.push(e);
+    if (kind === 'classes') {
+      const subs = D.archetypes.filter((x) => x.className === item.name).sort((x, y) => x.name.localeCompare(y.name));
+      if (subs.length) {
+        const sp = panel('Subclasses');
+        sp.append(h('p', { class: 'sub' }, subs.length + ' subclasses. Tap one to open it.'));
+        subs.forEach((s) => {
+          const body = h('div');
+          const d = h('details', null, h('summary', null, s.name), body);
+          d.addEventListener('toggle', () => { if (d.open && !body.childNodes.length) body.append(slot('holo:subclasses:' + s.key, { small: true, hint: 'Add a picture for ' + s.name }), mdBox(s.intro)); });
+          sp.append(d);
+        });
+        out.push(sp);
+      }
+    }
     return h('div', { class: 'wrap', style: 'gap:14px' }, out);
   }
 
@@ -880,16 +894,19 @@
       field('Search', q, 'wq'), h('div', { style: 'display:flex;gap:10px;align-items:center;margin:8px 0' }, fbtn, count), list));
   }
 
+  function planetURL(n) { const P = window.PLANET_IMG; return P && P.files[n] ? P.base + P.files[n] : ''; }
+  function planetPage(n) { const P = window.PLANET_IMG; return 'https://www.starwars.com/databank/' + (P && P.slugs[n] || encodeURIComponent(n.toLowerCase().replace(/ /g, '-'))); }
+
   function holoPlanets() {
     const names = L.planets.slice().sort((a, b) => a.localeCompare(b));
     const key = S.holoKey.planets && names.includes(S.holoKey.planets) ? S.holoKey.planets : names[0];
     const sel = panel('Planet entries', field('Planet', selectEl(names.map((n) => ({ v: n, t: n })), key, (v) => { S.holoKey.planets = v; render(); }, { id: 'psel' }), 'psel'));
     const e = panel(key);
     const info = (L.planetInfo || {})[key];
-    e.append(slot('holo:planets:' + key, { small: true, hint: 'Add a picture of ' + key, fallback: window.PLANET_ART ? PLANET_ART(key) : '' }));
+    e.append(slot('holo:planets:' + key, { small: true, hint: 'Add a picture of ' + key, fallback: planetURL(key) }));
     if (info) e.append(h('p', { style: 'margin:10px 0 4px' }, info.about), info.places.length ? h('p', { class: 'sub', style: 'margin:0 0 10px' }, 'Notable places: ' + info.places.join(' · ')) : null);
     e.append(
-      h('a', { class: 'btn sm', href: 'https://starwars.fandom.com/wiki/' + encodeURIComponent(key.replace(/ /g, '_')), target: '_blank', rel: 'noopener noreferrer' }, 'Open on Wookieepedia'));
+      h('a', { class: 'btn sm', href: planetPage(key), target: '_blank', rel: 'noopener noreferrer' }, 'Open on StarWars.com'), ' ', h('a', { class: 'btn sm', href: 'https://starwars.fandom.com/wiki/' + encodeURIComponent(key.replace(/ /g, '_')), target: '_blank', rel: 'noopener noreferrer' }, 'Wookieepedia'));
     return h('div', { class: 'wrap', style: 'gap:14px' }, [sel, e]);
   }
 
