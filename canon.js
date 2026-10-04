@@ -370,10 +370,13 @@
         let cur = [];
         arr.forEach((m) => {
           const prev = cur[cur.length - 1];
-          if (prev && Math.abs(m.y[0] - prev.y[0]) > 3 && uni()) { gs.push({ items: cur, start: cur[0], series: arr[0].s }); cur = []; }
           cur.push(m);
         });
-        if (cur.length) gs.push({ items: cur, start: cur[0], series: arr[0].s });
+        if (cur.length) {
+          const span = uni() ? cur[cur.length - 1].y[0] - cur[0].y[0] : 0;
+          if (span > 5) cur.forEach((m) => gs.push({ items: [m], start: m })); // anthologies that jump across eras stay episode by episode
+          else gs.push({ items: cur, start: cur[0], series: arr[0].s });
+        }
       });
       gs.forEach((g) => { if (g.items.length === 1) g.series = null; });
       gs.sort((a, b) => cmp(a.start, b.start));
@@ -404,7 +407,8 @@
       TS.q = input.value;
       const q = input.value.trim().toLowerCase(), toks = q.split(/\s+/).filter(Boolean);
       let items = [];
-      (BYKIND.media || []).forEach((m) => { if (TS.types[m.m] && !SKIP_TITLE.test(m.t)) items.push(m); });
+      const ovTypes = { film: 1, tv: 1 };
+      (BYKIND.media || []).forEach((m) => { if (TS.types[m.m] && !SKIP_TITLE.test(m.t) && (TS.mode !== 'overview' || ovTypes[m.m])) items.push(m); });
       if (TS.types.event && TS.char == null) (BYKIND.event || []).forEach((m) => items.push(m));
       if (TS.char != null) { const ok = new Set(APPEARS.get(TS.char) || []); items = items.filter((m) => ok.has(m.i)); }
       if (toks.length) items = items.filter((m) => toks.every((t) => (m._key + ' ' + (m.s || '').toLowerCase()).indexOf(t) >= 0));
@@ -441,7 +445,7 @@
     input.addEventListener('input', debounce(() => { TS.focus = null; build(); }, 140));
     const legend = h('div', { class: 'tllegend' }, ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'].map((t) => h('span', null, badge(t), BADGE[t][1])));
     wrap.append(panel('Timeline',
-      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Canon only, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
+      h('p', { class: 'sub', style: 'margin:0 0 8px' }, (TS.mode === 'overview' ? 'Overview shows movies and shows as a whole; tap a show to see its episodes in story order (shows that jump across eras are listed episode by episode). Switch to Every episode & issue for comics, books, games and stories. ' : '') + 'Canon only, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
       modeChips, input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn), count, legend), out);
     build();
     return wrap;
