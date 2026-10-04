@@ -335,3 +335,6 @@ body.calm #app::before { display: none; }
 
 /* wide screens: keep the whole app a centred datapad column instead of stretching edge to edge */
 #app { left: 0; right: 0; margin: 0 auto; max-width: 760px; border-inline: 1px solid var(--line); background: var(--ground); }
+
+.tabbar{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
+.tback{color:var(--holo);border-color:var(--holo-dim);font-size:1.7rem;padding-bottom:3px}

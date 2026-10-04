@@ -253,7 +253,7 @@
 
   /* ------------------------------------------------------------ chrome */
   const TABS = [
-    ['roster', 'Roster', 'roster'], ['build', 'Character', 'sheet'],
+    ['roster', 'Characters', 'roster'],
     ['holo', 'Holopedia', 'holo'], ['settings', 'Settings', 'settings']
   ];
   function buildChrome() {
@@ -347,10 +347,11 @@
     v.scrollTop = resetScroll ? 0 : top;
     const t = titleFor();
     $('#t').textContent = t; $('#ta').textContent = t;
+    const bk = $('#tback'); bk.hidden = S.tab !== 'build'; bk.onclick = () => go('roster');
     const xb = $('#tdel'); const showX = S.tab === 'build' && !!cur();
     xb.hidden = !showX; xb.onclick = () => { const c = cur(); if (c) askDelete(c.id); };
     document.querySelectorAll('.tabbar button').forEach((b) => {
-      if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      if (b.dataset.tab === (S.tab === 'build' ? 'roster' : S.tab)) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
   function go(tab, sec) {
@@ -1095,7 +1096,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 17.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 18.')));
     return wrap;
   }
 
