@@ -255,9 +255,8 @@
 
   /* ------------------------------------------------------------ chrome */
   const TABS = [
-    ['index', 'Index', 'index'], ['timeline', 'Timeline', 'timeline'],
-    ['roster', 'Characters', 'roster'],
-    ['holo', 'Holopedia', 'holo'], ['settings', 'Settings', 'settings']
+    ['index', 'Holopedia', 'holo'], ['timeline', 'Timeline', 'timeline'],
+    ['roster', 'Characters', 'roster'], ['settings', 'Settings', 'settings']
   ];
   function buildChrome() {
     const bar = $('.tabbar');
@@ -317,7 +316,7 @@
   function titleFor() {
     const c = cur();
     switch (S.tab) {
-      case 'index': return window.CANON ? window.CANON.title() : 'Index';
+      case 'index': return (S.rules || !window.CANON) ? 'SW5e rules guide' : (window.CANON.hasDetail() ? window.CANON.title() : 'The Holopedia');
       case 'timeline': return 'Timeline';
       case 'roster': return 'My characters';
       case 'build': return c ? c.name || 'Unnamed character' : 'Character';
@@ -352,9 +351,9 @@
     v.scrollTop = resetScroll ? 0 : top;
     const t = titleFor();
     $('#t').textContent = t; $('#ta').textContent = t;
-    const bk = $('#tback'); const cd = S.tab === 'index' && window.CANON && window.CANON.hasDetail();
+    const bk = $('#tback'); const cd = S.tab === 'index' && !S.rules && window.CANON && window.CANON.hasDetail();
     bk.hidden = !(S.tab === 'build' || cd);
-    bk.onclick = () => { if (S.tab === 'index' && window.CANON && window.CANON.hasDetail()) window.CANON.back(); else go('roster'); };
+    bk.onclick = () => { if (S.tab === 'index' && !S.rules && window.CANON && window.CANON.hasDetail()) window.CANON.back(); else go('roster'); };
     const xb = $('#tdel'); const showX = S.tab === 'build' && !!cur();
     xb.hidden = !showX; xb.onclick = () => { const c = cur(); if (c) askDelete(c.id); };
     document.querySelectorAll('.tabbar button').forEach((b) => {
@@ -1103,12 +1102,25 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 21.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 22.')));
     return wrap;
   }
 
-  const canonView = (n) => () => (window.CANON ? window.CANON[n]() : h('div', { class: 'wrap' }, panel('Canon index', h('p', { class: 'sub' }, 'The canon index is not part of this preview. Open the installed app or the Netlify site.'))));
-  const VIEWS = { index: canonView('viewIndex'), timeline: canonView('viewTimeline'), roster: viewRoster, build: viewBuild, holo: viewHolo, settings: viewSettings };
+  function holopedia() {
+    const hasC = !!window.CANON;
+    if (!hasC) S.rules = true;
+    if (!S.rules && window.CANON.hasDetail()) return window.CANON.viewIndex();
+    const sw = h('div', { class: 'chips', role: 'group', 'aria-label': 'Holopedia section' },
+      [[false, 'Canon lore'], [true, 'SW5e rules guide']].map(([v, t]) =>
+        h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!S.rules === v), onclick: () => { S.rules = v; render(); } }, t)));
+    const body = S.rules ? viewHolo() : window.CANON.viewIndex();
+    const note = S.rules ? h('p', { class: 'sub', style: 'margin:0' }, 'The pieces that belong to the SW5e game: species, classes, backgrounds and the rest of the character options.') : null;
+    const wrap = h('div', { class: 'wrap' }, hasC ? [sw] : []);
+    if (note) wrap.append(note);
+    wrap.append(...Array.from(body.childNodes));
+    return wrap;
+  }
+  const VIEWS = { index: holopedia, timeline: () => (window.CANON ? window.CANON.viewTimeline() : h('div', { class: 'wrap' }, panel('Timeline', h('p', { class: 'sub' }, 'The canon timeline is not part of this preview. Open the installed app or the Netlify site.')))), roster: viewRoster, build: viewBuild, settings: viewSettings };
 
   /* --------------------------------------------------------------- boot */
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.installEvt = e; });
@@ -1127,7 +1139,7 @@
     render(true);
     try { const f = await document.fonts.load('16px Aurebesh', 'Aa'); S.fontOK = f.length > 0; } catch (e) { S.fontOK = false; }
     applyTheme(); applyAur(); applyMotion();
-    if (S.tab === 'settings' || S.tab === 'holo') render();
+    if (S.tab === 'settings' || S.tab === 'index') render();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel="manifest"]')) {
       const had = !!navigator.serviceWorker.controller; let done = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !done) { done = true; location.reload(); } });

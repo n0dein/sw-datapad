@@ -30,7 +30,7 @@
   const APLAB = { c: 'Characters and droids', s: 'Species', l: 'Places', o: 'Groups', e: 'Events' };
 
   /* ---------- data ---------- */
-  const DATA_V = 'v1';
+  const DATA_V = 'v2';
   let ready = false, loadErr = '', loading = false, progress = '';
   let META = null, ITEMS = [], BYID = [], BYTITLE = new Map(), APPEARS = new Map(), BYKIND = {};
 
@@ -90,9 +90,9 @@
 
   /* ---------- shared bits ---------- */
   const ST = { kind: 'char', q: '', filters: {}, shown: 40, detail: null, stack: [], from: '', more: {} };
-  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: false }, era: -1, char: null, q: '', order: 'universe', shown: 80 };
+  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: true }, era: -1, char: null, q: '', order: 'universe', shown: 80 };
 
-  function title() { return ST.detail != null && BYID[ST.detail] ? BYID[ST.detail].n || BYID[ST.detail].t : 'Canon index'; }
+  function title() { return ST.detail != null && BYID[ST.detail] ? BYID[ST.detail].n || BYID[ST.detail].t : 'The Holopedia'; }
   function hasDetail() { return ST.detail != null; }
   function back() {
     if (ST.stack.length) ST.detail = ST.stack.pop();
@@ -189,7 +189,7 @@
 
   /* ---------- Index view ---------- */
   function loadingView() {
-    return h('div', { class: 'wrap' }, panel('Canon index',
+    return h('div', { class: 'wrap' }, panel('The Holopedia',
       loadErr ? h('p', { class: 'note' }, loadErr) : h('p', { class: 'sub' }, progress || 'Preparing the canon index…')));
   }
 
