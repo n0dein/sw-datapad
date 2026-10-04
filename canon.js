@@ -31,6 +31,11 @@
 
   /* ---------- data ---------- */
   const DATA_V = 'v3';
+  let ALLMEDIA = [];
+  const SHOW = { lego: false };
+  function applyLego() { BYKIND.media = SHOW.lego ? ALLMEDIA : ALLMEDIA.filter((e) => !e.lego); }
+  const legoCount = () => ALLMEDIA.filter((e) => e.lego).length;
+  const legoBtn = (after) => h('button', { class: 'btn sm', type: 'button', 'aria-pressed': String(SHOW.lego), onclick: () => { SHOW.lego = !SHOW.lego; applyLego(); TS.focus = null; after(); } }, SHOW.lego ? 'LEGO: shown' : 'LEGO: hidden');
   let ready = false, loadErr = '', loading = false, progress = '';
   let META = null, ITEMS = [], BYID = [], BYTITLE = new Map(), APPEARS = new Map(), BYKIND = {};
 
@@ -60,6 +65,9 @@
         e._key = (e.t + ' ' + (e.n || '') + ' ' + (e.a ? e.a.join(' ') : '')).toLowerCase();
         BYTITLE.set(e.t.toLowerCase(), e.i);
       });
+      ALLMEDIA = BYKIND.media || [];
+      ALLMEDIA.forEach((e) => { if (/\bLEGO\b/i.test(e.t + ' ' + (e.s || '') + ' ' + (e.n || ''))) e.lego = true; });
+      applyLego();
       ITEMS.forEach((e) => {
         if (e.n) { const k = e.n.toLowerCase(); if (!BYTITLE.has(k)) BYTITLE.set(k, e.i); }
         if (e.a) e.a.forEach((a) => { const k = a.toLowerCase(); if (!BYTITLE.has(k)) BYTITLE.set(k, e.i); });
@@ -244,7 +252,7 @@
     input.addEventListener('input', debounce(() => { ST.shown = 40; list(); }, 140));
     wrap.append(panel('Search',
       h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Canon only. ' + ITEMS.length.toLocaleString() + ' entries from Wookieepedia.'),
-      input, chips, h('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap' }, filterBtn, count), active), results,
+      input, chips, h('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap' }, filterBtn, ST.kind === 'media' ? legoBtn(() => DP.render()) : null, count), active), results,
       h('p', { class: 'sub credit' }, 'Text from Wookieepedia, licensed CC BY-SA. Names, dates and summaries are condensed from the wiki; each entry links back to its page.'));
     list();
     return wrap;
@@ -445,8 +453,8 @@
     input.addEventListener('input', debounce(() => { TS.focus = null; build(); }, 140));
     const legend = h('div', { class: 'tllegend' }, ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'].map((t) => h('span', null, badge(t), BADGE[t][1])));
     wrap.append(panel('Timeline',
-      h('p', { class: 'sub', style: 'margin:0 0 8px' }, (TS.mode === 'overview' ? 'Overview shows movies and shows as a whole; tap a show to see its episodes in story order (shows that jump across eras are listed episode by episode). Switch to Every episode & issue for comics, books, games and stories. ' : '') + 'Canon only, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
-      modeChips, input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn), count, legend), out);
+      h('p', { class: 'sub', style: 'margin:0 0 8px' }, (TS.mode === 'overview' ? 'Overview shows movies and shows as a whole; tap a show to see its episodes in story order (shows that jump across eras are listed episode by episode). Switch to Every episode & issue for comics, books, games and stories. ' : '') + 'Canon only (LEGO, which is non-canon, is hidden unless you turn it on), in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
+      modeChips, input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn, legoBtn(rerender)), count, legend), out);
     build();
     return wrap;
   }
