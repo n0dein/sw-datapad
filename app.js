@@ -279,6 +279,25 @@
       default: return 'Settings';
     }
   }
+  function removeChar(id) {
+    S.chars = S.chars.filter((c) => c.id !== id); dbDel('chars', id);
+    Object.keys(S.imgs).filter((k) => k.indexOf(id + ':') === 0).forEach((k) => setImg(k, null));
+    if (S.cur === id) S.cur = S.chars[0] ? S.chars[0].id : null;
+    if (!S.cur && (S.tab === 'sheet' || S.tab === 'build')) S.tab = 'roster';
+  }
+  function askDelete(id) {
+    const c = S.chars.find((x) => x.id === id); if (!c) return;
+    const close = () => scrim.remove();
+    const scrim = h('div', { class: 'scrim fsheet', role: 'dialog', 'aria-label': 'Delete character' },
+      h('div', { class: 'fcard', style: 'padding:16px' },
+        h('h3', { style: 'color:var(--holo)' }, 'Delete ' + (c.name || 'this character') + '?'),
+        h('p', { class: 'sub', style: 'margin:8px 0 14px' }, 'The character and its pictures are removed from this device. This cannot be undone. A backup in Settings can restore it.'),
+        h('div', { class: 'btns' },
+          h('button', { class: 'btn', type: 'button', onclick: close }, 'Keep'),
+          h('button', { class: 'btn warn', type: 'button', onclick: () => { close(); removeChar(id); toast('Deleted.'); render(true); } }, 'Delete'))));
+    scrim.addEventListener('click', (e) => { if (e.target === scrim) close(); });
+    document.body.append(scrim);
+  }
   function render(resetScroll) {
     const v = $('#view'); const top = v.scrollTop;
     let node;
@@ -287,6 +306,8 @@
     v.scrollTop = resetScroll ? 0 : top;
     const t = titleFor();
     $('#t').textContent = t; $('#ta').textContent = t;
+    const xb = $('#tdel'); const showX = (S.tab === 'sheet' || S.tab === 'build') && !!cur();
+    xb.hidden = !showX; xb.onclick = () => { const c = cur(); if (c) askDelete(c.id); };
     document.querySelectorAll('.tabbar button').forEach((b) => {
       if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -321,9 +342,11 @@
     S.chars.slice().sort((a, b) => b.updated - a.updated).forEach((c) => {
       const d = R.derive(D, c);
       const has = !!S.imgs[c.id + ':cover'];
-      grid.append(h('button', { class: 'card', type: 'button', onclick: () => openChar(c.id, 'sheet') },
-        h('span', { class: 'pic', style: bgImg(c.id + ':cover') }, has ? null : icon('user')),
-        h('span', { class: 'meta' }, h('strong', null, c.name || 'Unnamed'), h('span', null, lineage(d)))));
+      grid.append(h('div', { class: 'cwrap' },
+        h('button', { class: 'card', type: 'button', onclick: () => openChar(c.id, 'sheet') },
+          h('span', { class: 'pic', style: bgImg(c.id + ':cover') }, has ? null : icon('user')),
+          h('span', { class: 'meta' }, h('strong', null, c.name || 'Unnamed'), h('span', null, lineage(d)))),
+        h('button', { class: 'xbtn on-card', type: 'button', 'aria-label': 'Delete ' + (c.name || 'character'), onclick: () => askDelete(c.id) }, '\u00d7')));
     });
     grid.append(h('button', { class: 'card new', type: 'button', onclick: newChar }, icon('plus'), 'New character'));
     wrap.append(grid);
