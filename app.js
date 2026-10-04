@@ -346,6 +346,7 @@
   function render(resetScroll) {
     const v = $('#view'); const top = v.scrollTop;
     let node;
+    if (S.tab !== 'timeline' && window.CANON && window.CANON.leave) window.CANON.leave();
     try { node = VIEWS[S.tab](); } catch (e) { console.error(e); node = h('div', { class: 'wrap' }, panel('Something went wrong', h('p', null, 'This screen could not be drawn. Try another tab, then come back.'))); }
     v.replaceChildren(node);
     v.scrollTop = resetScroll ? 0 : top;
@@ -1102,7 +1103,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 25.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 26.')));
     return wrap;
   }
 
