@@ -1,6 +1,6 @@
-/* Cache-first service worker so the datapad works with no signal.
+/* Network-first (cache fallback) service worker: updates arrive as soon as you are online, and the datapad still works with no signal.
    Bump VERSION whenever any file changes. */
-const VERSION = 'datapad-12';
+const VERSION = 'datapad-13';
 const FILES = [
   './', 'index.html', 'styles.css', 'data.js', 'lore.js', 'speciesimg.js', 'planetimg.js', 'rules.js', 'app.js', 'manifest.webmanifest',
   'fonts/Aurebesh.otf', 'fonts/Aurebesh-Bold.otf', 'icons/icon-192.png', 'icons/icon-512.png'
@@ -22,5 +22,8 @@ self.addEventListener('fetch', (e) => {
     }
     return;
   }
-  e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then((r) => {
+    if (r.ok) { const copy = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copy)); }
+    return r;
+  }).catch(() => caches.match(e.request).then((hit) => hit || caches.match('index.html'))));
 });

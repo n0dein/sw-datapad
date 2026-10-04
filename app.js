@@ -1064,7 +1064,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 13.')));
     return wrap;
   }
 
@@ -1088,7 +1088,11 @@
     try { const f = await document.fonts.load('16px Aurebesh', 'Aa'); S.fontOK = f.length > 0; } catch (e) { S.fontOK = false; }
     applyTheme(); applyAur(); applyMotion();
     if (S.tab === 'settings' || S.tab === 'holo') render();
-    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register('sw.js').catch(() => {});
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel="manifest"]')) {
+      const had = !!navigator.serviceWorker.controller; let done = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !done) { done = true; location.reload(); } });
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
   }
   init();
 })();
