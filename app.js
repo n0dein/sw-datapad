@@ -38,6 +38,8 @@
     holo: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2',
     settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
     plus: 'M12 5v14M5 12h14',
+    index: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16M21 21l-4.3-4.3M8 11h6',
+    timeline: 'M12 3v18M12 7h7M12 12H5M12 17h7M19 7v0M5 12v0M19 17v0',
     user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8'
   };
   function icon(name) {
@@ -123,7 +125,7 @@
   }
 
   /* -------------------------------------------------------------- state */
-  const S = { chars: [], imgs: {}, cfg: { aur: true }, cur: null, tab: 'roster', sec: 'basics', holo: 'species', holoKey: {}, story: 'origin', ok: true, fontOK: false, confirm: '', installEvt: null };
+  const S = { chars: [], imgs: {}, cfg: { aur: true }, cur: null, tab: 'index', sec: 'basics', holo: 'species', holoKey: {}, story: 'origin', ok: true, fontOK: false, confirm: '', installEvt: null };
   const cur = () => S.chars.find((c) => c.id === S.cur) || null;
 
   const dirty = new Set();
@@ -253,6 +255,7 @@
 
   /* ------------------------------------------------------------ chrome */
   const TABS = [
+    ['index', 'Index', 'index'], ['timeline', 'Timeline', 'timeline'],
     ['roster', 'Characters', 'roster'],
     ['holo', 'Holopedia', 'holo'], ['settings', 'Settings', 'settings']
   ];
@@ -314,7 +317,9 @@
   function titleFor() {
     const c = cur();
     switch (S.tab) {
-      case 'roster': return 'Characters';
+      case 'index': return window.CANON ? window.CANON.title() : 'Index';
+      case 'timeline': return 'Timeline';
+      case 'roster': return 'My characters';
       case 'build': return c ? c.name || 'Unnamed character' : 'Character';
       case 'holo': return 'The Holopedia';
       default: return 'Settings';
@@ -347,7 +352,9 @@
     v.scrollTop = resetScroll ? 0 : top;
     const t = titleFor();
     $('#t').textContent = t; $('#ta').textContent = t;
-    const bk = $('#tback'); bk.hidden = S.tab !== 'build'; bk.onclick = () => go('roster');
+    const bk = $('#tback'); const cd = S.tab === 'index' && window.CANON && window.CANON.hasDetail();
+    bk.hidden = !(S.tab === 'build' || cd);
+    bk.onclick = () => { if (S.tab === 'index' && window.CANON && window.CANON.hasDetail()) window.CANON.back(); else go('roster'); };
     const xb = $('#tdel'); const showX = S.tab === 'build' && !!cur();
     xb.hidden = !showX; xb.onclick = () => { const c = cur(); if (c) askDelete(c.id); };
     document.querySelectorAll('.tabbar button').forEach((b) => {
@@ -1096,11 +1103,12 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 18.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 20.')));
     return wrap;
   }
 
-  const VIEWS = { roster: viewRoster, build: viewBuild, holo: viewHolo, settings: viewSettings };
+  const canonView = (n) => () => (window.CANON ? window.CANON[n]() : h('div', { class: 'wrap' }, panel('Canon index', h('p', { class: 'sub' }, 'The canon index is not part of this preview. Open the installed app or the Netlify site.'))));
+  const VIEWS = { index: canonView('viewIndex'), timeline: canonView('viewTimeline'), roster: viewRoster, build: viewBuild, holo: viewHolo, settings: viewSettings };
 
   /* --------------------------------------------------------------- boot */
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.installEvt = e; });
@@ -1126,5 +1134,7 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   }
+  window.DP = { h, panel, field, toast, debounce, icon, selectEl, S, go, render: (r) => render(r) };
   init();
+  if (window.CANON && window.CANON.ready) window.CANON.ready();
 })();
