@@ -370,6 +370,35 @@
   /* -------------------------------------------------------------- views */
   const lineage = (d) => [d.species && d.species.name, d.cls ? d.cls.name + (d.arch ? ' (' + d.arch.name + ')' : '') : '', 'Lv ' + d.lvl].filter(Boolean).join(' · ');
 
+  /* ---- PDF export ---- */
+  function loadScript(src) {
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(src)); document.head.append(s); });
+  }
+  async function exportPDF(c, d, btn) {
+    const label = btn.textContent; btn.disabled = true; btn.textContent = 'Building PDF...';
+    try {
+      if (!window.jspdf) await loadScript('jspdf.min.js');
+      if (!window.AUR_TTF) await loadScript('pdffont.js').catch(() => {});
+      if (!window.PDFX) await loadScript('pdfexport.js');
+      const hue = typeof S.cfg.hue === 'number' ? S.cfg.hue : BASE_HUE;
+      const blob = await window.PDFX.make({
+        c, d, D, L, R, cover: S.imgs[c.id + ':cover'] || '', aur: !!S.cfg.aur,
+        accent: rgb2hex(hsl2rgb([hue, 0.85, 0.28]))
+      });
+      const fname = ((c.name || 'character').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'character') + '.pdf';
+      const file = new File([blob], fname, { type: 'application/pdf' });
+      const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+      if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: c.name || 'Character' }); toast('PDF ready.'); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = h('a', { href: url, download: fname }); document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      toast('PDF saved.');
+    } catch (e) { console.error(e); toast('The PDF could not be built.'); }
+    finally { btn.disabled = false; btn.textContent = label; }
+  }
+
   function newChar() {
     const c = R.newCharacter();
     S.chars.push(c); touch(c); flush();
@@ -409,7 +438,7 @@
         h('div', null, h('h2', null, c.name || 'Unnamed character'),
           c.concept ? h('div', { class: 'sub' }, c.concept) : null,
           h('div', { class: 'facts' }, h('span', null, lineage(d)), d.bg ? h('span', null, d.bg.name + ' background') : null))),
-      null));
+      h('div', { class: 'btns', style: 'margin-top:12px' }, h('button', { class: 'btn primary', type: 'button', onclick: (e) => exportPDF(c, d, e.currentTarget) }, 'Export PDF'))));
 
     wrap.append(panel('Vitals',
       h('div', { class: 'vitals' },
@@ -1066,7 +1095,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 14.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 15.')));
     return wrap;
   }
 
