@@ -86,10 +86,12 @@
         return true;
       };
 
+      let forceBreak = true;
       function h1(t) {
-        newPage();
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(19); color(accent);
-        y += 6; doc.text(clean(t), M, y);
+        /* sections flow one after another; start a new page only when there is little room left */
+        if (forceBreak || y > PH - FOOT - 190) { newPage(); y += 6; } else y += 26;
+        forceBreak = false;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(19); color(accent); doc.text(clean(t), M, y);
         toc.push({ lvl: 1, text: clean(t), page: doc.getNumberOfPages() });
         y += 5; doc.setDrawColor(accent[0], accent[1], accent[2]); doc.setLineWidth(1.2); doc.line(M, y, M + CW, y);
         y += 11;
@@ -97,13 +99,13 @@
         y += 6; doc.setFont('helvetica', 'normal');
       }
       function h2(t, inToc) {
-        ensure(72);
-        y += 17; doc.setFont('helvetica', 'bold'); doc.setFontSize(13); color(ink);
+        ensure(56);
+        y += 12; doc.setFont('helvetica', 'bold'); doc.setFontSize(13); color(ink);
         const lines = doc.splitTextToSize(clean(t), CW);
         doc.text(lines, M, y);
         if (inToc !== false) toc.push({ lvl: 2, text: clean(t), page: doc.getNumberOfPages() });
         y += lines.length * 15 - 2; doc.setDrawColor(rule[0], rule[1], rule[2]); doc.setLineWidth(0.6); doc.line(M, y, M + CW, y);
-        y += 10; doc.setFont('helvetica', 'normal');
+        y += 4; doc.setFont('helvetica', 'normal');
       }
       function h3(t) {
         ensure(38);
@@ -113,7 +115,7 @@
       }
       function para(t, o) {
         o = o || {};
-        const size = o.size || 10, lh = size * 1.38, x = M + (o.indent || 0);
+        const size = o.size || 9.5, lh = size * 1.32, x = M + (o.indent || 0);
         doc.setFont('helvetica', o.bold ? 'bold' : o.italic ? 'italic' : 'normal'); doc.setFontSize(size); color(o.color || ink);
         const lines = doc.splitTextToSize(clean(t), CW - (o.indent || 0) - (o.hang || 0));
         lines.forEach((ln, i) => {
@@ -126,7 +128,7 @@
       }
       function bullet(t, lvl, o) {
         o = o || {};
-        const size = o.size || 10, lh = size * 1.38, ind = 12 + (lvl || 0) * 16;
+        const size = o.size || 9.5, lh = size * 1.32, ind = 12 + (lvl || 0) * 16;
         doc.setFont('helvetica', 'normal'); doc.setFontSize(size); color(o.color || ink);
         const lines = doc.splitTextToSize(clean(t), CW - ind - 4);
         lines.forEach((ln, i) => {
