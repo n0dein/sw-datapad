@@ -253,7 +253,7 @@
 
   /* ------------------------------------------------------------ chrome */
   const TABS = [
-    ['roster', 'Roster', 'roster'], ['sheet', 'Sheet', 'sheet'], ['build', 'Build', 'build'],
+    ['roster', 'Roster', 'roster'], ['build', 'Character', 'sheet'],
     ['holo', 'Holopedia', 'holo'], ['settings', 'Settings', 'settings']
   ];
   function buildChrome() {
@@ -261,6 +261,48 @@
     TABS.forEach(([id, label, ic]) => {
       bar.append(h('button', { type: 'button', 'data-tab': id, onclick: () => go(id) }, icon(ic), h('span', null, label)));
     });
+  }
+
+  /* ---- colour theme: one hue drives every blue shade, brightness stays as designed ---- */
+  const BASE = { ground: '#040b12', panel: '#0a1a28', 'panel-2': '#0e2436', line: '#1f6784', 'line-2': '#1c4a5e', deep: '#07141f', holo: '#6fe6ff', 'holo-dim': '#4a9bb5', text: '#d9f5ff', muted: '#86b4c6' };
+  const hex2rgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+  const rgb2hex = (r) => '#' + r.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  function rgb2hsl([r, g, b]) {
+    r /= 255; g /= 255; b /= 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let hh = 0, s = 0;
+    if (d) {
+      s = d / (1 - Math.abs(2 * l - 1));
+      hh = mx === r ? ((g - b) / d + (g < b ? 6 : 0)) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      hh *= 60;
+    }
+    return [hh, s, l];
+  }
+  function hsl2rgb([hh, s, l]) {
+    const k = (n) => (n + hh / 30) % 12, a2 = s * Math.min(l, 1 - l);
+    const f = (n) => l - a2 * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [f(0) * 255, f(8) * 255, f(4) * 255];
+  }
+  const BASE_HUE = rgb2hsl(hex2rgb(BASE.holo))[0];
+  function themeFor(hue) {
+    const out = {};
+    const shift = hue - BASE_HUE;
+    Object.keys(BASE).forEach((k) => {
+      const [h0, s, l] = rgb2hsl(hex2rgb(BASE[k]));
+      out[k] = rgb2hex(hsl2rgb([(h0 + shift + 720) % 360, s, l]));
+    });
+    return out;
+  }
+  function applyTheme() {
+    const st = document.documentElement.style;
+    const hue = typeof S.cfg.hue === 'number' ? S.cfg.hue : null;
+    const t = hue === null ? BASE : themeFor(hue);
+    Object.keys(t).forEach((k) => st.setProperty('--' + k, t[k]));
+    const trip = (x) => hex2rgb(x).join(',');
+    st.setProperty('--holo-rgb', trip(t.holo)); st.setProperty('--line-rgb', trip(t.line)); st.setProperty('--ground-rgb', trip(t.ground));
+    const v = hex2rgb(t.ground).map((n) => Math.max(0, n - 2)); st.setProperty('--void-rgb', v.join(','));
+    const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', t.ground);
+    return t.holo;
   }
   function applyMotion() {
     const sys = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -273,8 +315,7 @@
     const c = cur();
     switch (S.tab) {
       case 'roster': return 'Characters';
-      case 'sheet': return c ? c.name || 'Unnamed character' : 'Character sheet';
-      case 'build': return c ? 'Build: ' + (c.name || 'Unnamed') : 'Builder';
+      case 'build': return c ? c.name || 'Unnamed character' : 'Character';
       case 'holo': return 'The Holopedia';
       default: return 'Settings';
     }
@@ -283,7 +324,7 @@
     S.chars = S.chars.filter((c) => c.id !== id); dbDel('chars', id);
     Object.keys(S.imgs).filter((k) => k.indexOf(id + ':') === 0).forEach((k) => setImg(k, null));
     if (S.cur === id) S.cur = S.chars[0] ? S.chars[0].id : null;
-    if (!S.cur && (S.tab === 'sheet' || S.tab === 'build')) S.tab = 'roster';
+    if (!S.cur && S.tab === 'build') S.tab = 'roster';
   }
   function askDelete(id) {
     const c = S.chars.find((x) => x.id === id); if (!c) return;
@@ -306,13 +347,14 @@
     v.scrollTop = resetScroll ? 0 : top;
     const t = titleFor();
     $('#t').textContent = t; $('#ta').textContent = t;
-    const xb = $('#tdel'); const showX = (S.tab === 'sheet' || S.tab === 'build') && !!cur();
+    const xb = $('#tdel'); const showX = S.tab === 'build' && !!cur();
     xb.hidden = !showX; xb.onclick = () => { const c = cur(); if (c) askDelete(c.id); };
     document.querySelectorAll('.tabbar button').forEach((b) => {
       if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
   function go(tab, sec) {
+    if (tab === 'sheet') { tab = 'build'; sec = 'sheet'; }
     S.tab = tab; if (sec) S.sec = sec; S.confirm = '';
     render(true);
   }
@@ -332,7 +374,7 @@
     const c = R.newCharacter();
     S.chars.push(c); touch(c); flush();
     S.sec = 'basics';
-    openChar(c.id, 'build');
+    S.sec = 'basics'; openChar(c.id, 'build');
   }
 
   function viewRoster() {
@@ -367,7 +409,7 @@
         h('div', null, h('h2', null, c.name || 'Unnamed character'),
           c.concept ? h('div', { class: 'sub' }, c.concept) : null,
           h('div', { class: 'facts' }, h('span', null, lineage(d)), d.bg ? h('span', null, d.bg.name + ' background') : null))),
-      h('div', { class: 'btns', style: 'margin-top:12px' }, h('button', { class: 'btn', type: 'button', onclick: () => go('build', 'basics') }, 'Edit character'))));
+      null));
 
     wrap.append(panel('Vitals',
       h('div', { class: 'vitals' },
@@ -471,15 +513,16 @@
   function viewBuild() {
     const c = cur(); if (!c) return noChar('Start a new character from the roster, or open one to edit it.');
     const wrap = h('div', { class: 'wrap' });
-    wrap.append(h('div', { class: 'chips', role: 'group', 'aria-label': 'Builder sections' }, SECTIONS.map(([id, label]) =>
+    wrap.append(h('div', { class: 'chips', role: 'group', 'aria-label': 'Character sections' }, [['sheet', 'Summary']].concat(SECTIONS).map(([id, label]) =>
       h('button', { class: 'chip', type: 'button', 'aria-pressed': String(S.sec === id), onclick: () => { S.sec = id; render(true); } }, label))));
+    if (S.sec === 'sheet') { wrap.append(viewSheet()); return wrap; }
     const fn = BUILD[S.sec] || BUILD.basics;
     [].concat(fn(c)).forEach((p) => wrap.append(p));
     const i = SECTIONS.findIndex((s) => s[0] === S.sec);
     wrap.append(h('div', { class: 'btns' },
       i > 0 ? h('button', { class: 'btn', type: 'button', onclick: () => { S.sec = SECTIONS[i - 1][0]; render(true); } }, 'Back: ' + SECTIONS[i - 1][1]) : null,
       i < SECTIONS.length - 1 ? h('button', { class: 'btn primary', type: 'button', onclick: () => { S.sec = SECTIONS[i + 1][0]; render(true); } }, 'Next: ' + SECTIONS[i + 1][1])
-        : h('button', { class: 'btn primary', type: 'button', onclick: () => go('sheet') }, 'View sheet')));
+        : h('button', { class: 'btn primary', type: 'button', onclick: () => go('sheet') }, 'View summary')));
     return wrap;
   }
 
@@ -981,70 +1024,51 @@
 
   function viewSettings() {
     const wrap = h('div', { class: 'wrap' });
-    const aur = h('input', { type: 'checkbox', id: 'aurtoggle', checked: !!S.cfg.aur });
-    aur.addEventListener('change', () => { S.cfg.aur = aur.checked; dbPut('meta', 'cfg', S.cfg); applyAur(); });
-    const calmNow = S.cfg.calm === undefined ? (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) : !!S.cfg.calm;
-    const calm = h('input', { type: 'checkbox', id: 'calmtoggle', checked: calmNow });
-    calm.addEventListener('change', () => { S.cfg.calm = calm.checked; dbPut('meta', 'cfg', S.cfg); applyMotion(); });
-    wrap.append(panel('Display',
-      h('label', { class: 'li', for: 'aurtoggle', style: 'gap:12px;border:0' }, aur, h('span', { class: 'nm' }, 'Show Aurabesh under headings')),
-      h('label', { class: 'li', for: 'calmtoggle', style: 'gap:12px;border:0' }, calm, h('span', { class: 'nm' }, 'Reduce motion (stop the scrolling hologram lines)')),
-      h('p', { class: 'sub' }, S.fontOK ? 'Aurabesh font loaded.' : 'The Aurabesh font did not load, so Aurabesh lines are hidden.')));
+    const row = (label, ctl) => h('div', { class: 'srow' }, h('span', { class: 'nm' }, label), ctl);
+    const toggle = (label, on, set) => { const i = h('input', { type: 'checkbox', checked: on }); i.addEventListener('change', () => set(i.checked)); return h('label', { class: 'srow tg' }, h('span', { class: 'nm' }, label), i); };
+    const save = () => dbPut('meta', 'cfg', S.cfg);
 
-    const paste = h('textarea', { id: 'paste', rows: 4, placeholder: 'Paste a backup here to restore it' });
+    const curHue = typeof S.cfg.hue === 'number' ? S.cfg.hue : BASE_HUE;
+    const slider = h('input', { type: 'range', min: 0, max: 360, step: 1, value: Math.round(curHue), class: 'hue', 'aria-label': 'Colour hue' });
+    const hexIn = h('input', { type: 'text', class: 'hexin', maxlength: 7, autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Hex colour code' });
+    const sw = h('span', { class: 'swatch' });
+    const show = () => { const x = applyTheme(); hexIn.value = x.toUpperCase(); sw.style.background = x; };
+    slider.addEventListener('input', () => { S.cfg.hue = +slider.value; show(); });
+    slider.addEventListener('change', save);
+    hexIn.addEventListener('change', () => {
+      let v = hexIn.value.trim(); if (v[0] !== '#') v = '#' + v;
+      if (/^#[0-9a-fA-F]{3}$/.test(v)) v = '#' + v.slice(1).split('').map((ch) => ch + ch).join('');
+      if (!/^#[0-9a-fA-F]{6}$/.test(v)) { toast('Enter a hex code like #6FE6FF.'); show(); return; }
+      const [hh, s] = rgb2hsl(hex2rgb(v));
+      if (s < 0.05) { toast('That colour is grey. Pick one with some colour in it.'); show(); return; }
+      S.cfg.hue = Math.round(hh); slider.value = S.cfg.hue; show(); save();
+    });
+    const reset = h('button', { class: 'btn sm', type: 'button', onclick: () => { delete S.cfg.hue; slider.value = Math.round(BASE_HUE); show(); save(); } }, 'Reset');
+    show();
+
     const file = h('input', { type: 'file', accept: 'application/json,.json', hidden: true });
     file.addEventListener('change', async () => { const f = file.files && file.files[0]; if (f) await importAll(await f.text()); file.value = ''; });
-    wrap.append(panel('Back up and restore',
-      h('p', { class: 'sub' }, 'Characters and images are saved on this device. A backup lets you move them or recover them if browser data is cleared.'),
+
+    wrap.append(panel('Settings',
+      h('div', { class: 'lbl' }, 'Colour'),
+      slider,
+      h('div', { class: 'srow' }, sw, hexIn, reset),
+      toggle('Aurabesh under headings', !!S.cfg.aur, (v) => { S.cfg.aur = v; save(); applyAur(); }),
+      toggle('Reduce motion', document.body.classList.contains('calm'), (v) => { S.cfg.calm = v; save(); applyMotion(); }),
+      h('div', { class: 'lbl', style: 'margin-top:6px' }, 'Backup'),
       h('div', { class: 'btns' },
-        h('button', { class: 'btn primary', type: 'button', onclick: () => {
+        h('button', { class: 'btn', type: 'button', onclick: () => {
           const blob = new Blob([JSON.stringify(exportAll())], { type: 'application/json' });
           const a = h('a', { href: URL.createObjectURL(blob), download: 'sw5e-datapad-backup.json' });
           document.body.append(a); a.click(); a.remove(); toast('Backup file created.');
-        } }, 'Download backup'),
-        h('button', { class: 'btn', type: 'button', onclick: async () => {
-          try { await navigator.clipboard.writeText(JSON.stringify(exportAll())); toast('Backup copied.'); } catch (e) { toast('Copy was blocked. Use Download backup.'); }
-        } }, 'Copy backup')),
-      h('div', { class: 'btns', style: 'margin-top:12px' }, h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore from file'), file),
-      field('Or paste a backup', paste, 'paste'),
-      h('div', { class: 'btns' }, h('button', { class: 'btn', type: 'button', onclick: () => { if (paste.value.trim()) importAll(paste.value); } }, 'Restore from pasted text')),
-      !S.ok ? h('div', { class: 'note', style: 'margin-top:10px' }, 'This browser is not saving between visits. Back up before you close the app.') : null));
-
-    const del = S.confirm === 'all';
-    wrap.append(panel('Your data',
-      h('p', { class: 'sub' }, S.chars.length + ' character' + (S.chars.length === 1 ? '' : 's') + ' on this device.'),
-      cur() ? h('div', { class: 'btns', style: 'margin-bottom:10px' },
-        h('button', { class: 'btn', type: 'button', onclick: () => {
-          const src = cur(); const copy = JSON.parse(JSON.stringify(src));
-          copy.id = R.newCharacter().id; copy.name = (src.name || 'Unnamed') + ' (copy)'; copy.created = copy.updated = Date.now();
-          Object.keys(S.imgs).filter((k) => k.indexOf(src.id + ':') === 0).forEach((k) => setImg(copy.id + k.slice(src.id.length), S.imgs[k]));
-          S.chars.push(copy); touch(copy); flush(); S.cur = copy.id; toast('Duplicated.'); render();
-        } }, 'Duplicate current'),
-        S.confirm === 'one'
-          ? h('button', { class: 'btn warn', type: 'button', onclick: () => {
-            const id = S.cur; S.chars = S.chars.filter((c) => c.id !== id); dbDel('chars', id);
-            Object.keys(S.imgs).filter((k) => k.indexOf(id + ':') === 0).forEach((k) => setImg(k, null));
-            S.cur = S.chars[0] ? S.chars[0].id : null; S.confirm = ''; toast('Deleted.'); render();
-          } }, 'Tap again to delete ' + (cur().name || 'this character'))
-          : h('button', { class: 'btn warn', type: 'button', onclick: () => { S.confirm = 'one'; render(); } }, 'Delete current')) : null,
-      del ? h('button', { class: 'btn warn', type: 'button', onclick: async () => {
-        S.chars.forEach((c) => dbDel('chars', c.id)); Object.keys(S.imgs).forEach((k) => dbDel('imgs', k));
-        S.chars = []; S.imgs = {}; S.cur = null; S.confirm = ''; toast('Everything deleted.'); render();
-      } }, 'Tap again to delete everything')
-        : h('button', { class: 'btn warn', type: 'button', onclick: () => { S.confirm = 'all'; render(); } }, 'Delete all characters')));
-
-    wrap.append(panel('Install',
-      h('p', { class: 'sub' }, 'In Chrome, open the menu and choose Add to Home screen (or Install app) to pin this to your phone.'),
-      S.installEvt ? h('div', { class: 'btns' }, h('button', { class: 'btn primary', type: 'button', onclick: async () => { S.installEvt.prompt(); S.installEvt = null; render(); } }, 'Install now')) : null));
-
-    wrap.append(panel('About',
-      h('p', { class: 'sub' }, 'A personal character builder for Star Wars 5e. Rules text and numbers come from the SW5e community database and are shown as published, and species art comes from the SW5e community site. Nothing here changes any rule.'),
-      h('p', { class: 'sub' }, 'Lore, words and prompts are limited to current canon. Star Wars is a trademark of Lucasfilm Ltd. This is an unofficial fan tool for personal use.'),
-      h('p', { class: 'sub' }, 'Aurebesh font by Pixel Sagas (Neale Davidson), free for personal use.')));
+        } }, 'Download'),
+        h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
+      !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas.')));
     return wrap;
   }
 
-  const VIEWS = { roster: viewRoster, sheet: viewSheet, build: viewBuild, holo: viewHolo, settings: viewSettings };
+  const VIEWS = { roster: viewRoster, build: viewBuild, holo: viewHolo, settings: viewSettings };
 
   /* --------------------------------------------------------------- boot */
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.installEvt = e; });
@@ -1062,7 +1086,7 @@
     buildChrome();
     render(true);
     try { const f = await document.fonts.load('16px Aurebesh', 'Aa'); S.fontOK = f.length > 0; } catch (e) { S.fontOK = false; }
-    applyAur(); applyMotion();
+    applyTheme(); applyAur(); applyMotion();
     if (S.tab === 'settings' || S.tab === 'holo') render();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
