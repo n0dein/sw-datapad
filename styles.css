@@ -285,3 +285,27 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4}
 .slink{min-width:34px;height:30px;padding:0 8px;display:grid;place-items:center;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-decoration:none;color:var(--holo);background:rgba(4,11,18,.78);border:1px solid var(--holo-dim);border-radius:2px}
 .slink:active{background:rgba(111,230,255,.2)}
 html,body,button,a,select,input,.cover{touch-action:manipulation}
+
+/* ---- full-height shell: reaches the bottom edge, tab bar tucked closer to the home indicator ---- */
+#app { position: fixed; inset: 0; height: auto; }
+.tabbar { padding-bottom: calc(env(safe-area-inset-bottom, 0px) * .4); }
+.tabbar button { padding: 7px 2px 6px; min-height: 48px; }
+
+/* ---- hologram drift: soft scrolling blue lines, slow and faint ---- */
+body::after {
+  content: ""; position: fixed; left: 0; right: 0; top: -120px; bottom: 0; pointer-events: none; z-index: 49;
+  background:
+    repeating-linear-gradient(0deg, rgba(111,230,255,.045) 0 1px, transparent 1px 4px);
+  animation: holo-drift 14s linear infinite;
+  will-change: transform;
+}
+@keyframes holo-drift { from { transform: translateY(0); } to { transform: translateY(120px); } }
+@keyframes holo-sweep { from { transform: translateY(-260px); } to { transform: translateY(110vh); } }
+#app::before {
+  content: ""; position: fixed; left: 0; right: 0; top: 0; height: 220px; pointer-events: none; z-index: 49;
+  background: linear-gradient(180deg, transparent, rgba(111,230,255,.06) 50%, transparent);
+  animation: holo-sweep 11s linear infinite; will-change: transform;
+}
+body.calm::after, body.calm #app::before { animation: none; }
+body.calm #app::before { display: none; }
+@media (prefers-reduced-motion: reduce) { body:not(.motion-on)::after, body:not(.motion-on) #app::before { animation: none; } body:not(.motion-on) #app::before { display: none; } }

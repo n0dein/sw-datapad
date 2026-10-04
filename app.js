@@ -262,6 +262,12 @@
       bar.append(h('button', { type: 'button', 'data-tab': id, onclick: () => go(id) }, icon(ic), h('span', null, label)));
     });
   }
+  function applyMotion() {
+    const sys = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const calm = S.cfg.calm === undefined ? sys : !!S.cfg.calm;
+    document.body.classList.toggle('calm', calm);
+    document.body.classList.toggle('motion-on', !calm);
+  }
   function applyAur() { document.body.classList.toggle('no-aur', !(S.cfg.aur && S.fontOK)); }
   function titleFor() {
     const c = cur();
@@ -954,8 +960,12 @@
     const wrap = h('div', { class: 'wrap' });
     const aur = h('input', { type: 'checkbox', id: 'aurtoggle', checked: !!S.cfg.aur });
     aur.addEventListener('change', () => { S.cfg.aur = aur.checked; dbPut('meta', 'cfg', S.cfg); applyAur(); });
+    const calmNow = S.cfg.calm === undefined ? (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) : !!S.cfg.calm;
+    const calm = h('input', { type: 'checkbox', id: 'calmtoggle', checked: calmNow });
+    calm.addEventListener('change', () => { S.cfg.calm = calm.checked; dbPut('meta', 'cfg', S.cfg); applyMotion(); });
     wrap.append(panel('Display',
       h('label', { class: 'li', for: 'aurtoggle', style: 'gap:12px;border:0' }, aur, h('span', { class: 'nm' }, 'Show Aurabesh under headings')),
+      h('label', { class: 'li', for: 'calmtoggle', style: 'gap:12px;border:0' }, calm, h('span', { class: 'nm' }, 'Reduce motion (stop the scrolling hologram lines)')),
       h('p', { class: 'sub' }, S.fontOK ? 'Aurabesh font loaded.' : 'The Aurabesh font did not load, so Aurabesh lines are hidden.')));
 
     const paste = h('textarea', { id: 'paste', rows: 4, placeholder: 'Paste a backup here to restore it' });
@@ -1029,7 +1039,7 @@
     buildChrome();
     render(true);
     try { const f = await document.fonts.load('16px Aurebesh', 'Aa'); S.fontOK = f.length > 0; } catch (e) { S.fontOK = false; }
-    applyAur();
+    applyAur(); applyMotion();
     if (S.tab === 'settings' || S.tab === 'holo') render();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
