@@ -1031,8 +1031,10 @@
     const curHue = typeof S.cfg.hue === 'number' ? S.cfg.hue : BASE_HUE;
     const slider = h('input', { type: 'range', min: 0, max: 360, step: 1, value: Math.round(curHue), class: 'hue', 'aria-label': 'Colour hue' });
     const hexIn = h('input', { type: 'text', class: 'hexin', maxlength: 7, autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Hex colour code' });
-    const sw = h('span', { class: 'swatch' });
-    const show = () => { const x = applyTheme(); hexIn.value = x.toUpperCase(); sw.style.background = x; };
+    const sw = h('input', { type: 'color', class: 'swatch', 'aria-label': 'Pick a colour' });
+    sw.addEventListener('input', () => { const [hh, s] = rgb2hsl(hex2rgb(sw.value)); if (s < 0.05) return; S.cfg.hue = Math.round(hh); slider.value = S.cfg.hue; const x = applyTheme(); hexIn.value = x.toUpperCase(); });
+    sw.addEventListener('change', save);
+    const show = () => { const x = applyTheme(); hexIn.value = x.toUpperCase(); sw.value = x; };
     slider.addEventListener('input', () => { S.cfg.hue = +slider.value; show(); });
     slider.addEventListener('change', save);
     hexIn.addEventListener('change', () => {
@@ -1064,7 +1066,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 13.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 14.')));
     return wrap;
   }
 

@@ -1,6 +1,6 @@
 /* Network-first (cache fallback) service worker: updates arrive as soon as you are online, and the datapad still works with no signal.
    Bump VERSION whenever any file changes. */
-const VERSION = 'datapad-13';
+const VERSION = 'datapad-14';
 const FILES = [
   './', 'index.html', 'styles.css', 'data.js', 'lore.js', 'speciesimg.js', 'planetimg.js', 'rules.js', 'app.js', 'manifest.webmanifest',
   'fonts/Aurebesh.otf', 'fonts/Aurebesh-Bold.otf', 'icons/icon-192.png', 'icons/icon-512.png'
