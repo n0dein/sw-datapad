@@ -332,3 +332,6 @@ body.calm #app::before { display: none; }
 .swatch{width:34px;height:34px;border:1px solid var(--line);flex:none}
 .hexin{flex:1;min-width:0;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;background:var(--ground);border:1px solid var(--line);padding:8px 10px}
 .swatch{padding:0;background:none;border:1px solid var(--line);border-radius:0;cursor:pointer}.swatch::-webkit-color-swatch-wrapper{padding:0}.swatch::-webkit-color-swatch{border:0}.swatch::-moz-color-swatch{border:0}
+
+/* wide screens: keep the whole app a centred datapad column instead of stretching edge to edge */
+#app { left: 0; right: 0; margin: 0 auto; max-width: 760px; border-inline: 1px solid var(--line); background: var(--ground); }

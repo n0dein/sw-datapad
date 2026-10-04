@@ -239,7 +239,7 @@
   const panel = (title, ...kids) => h('section', { class: 'panel' },
     h('div', { class: 'head' }, h('h2', null, title), h('span', { class: 'aur', 'aria-hidden': 'true' }, title)), kids);
   const mdBox = (src) => { const d = h('div', { class: 'md' }); d.innerHTML = md(src); return d; };
-  const expand = (title, body, open) => h('details', open ? { open: true } : null, h('summary', null, title), body);
+  const expand = (title, body, open) => h('details', open === false ? null : { open: true }, h('summary', null, title), body);
 
   function textBind(c, store, key, opts) {
     opts = opts || {};
@@ -646,7 +646,7 @@
     if (cl) {
       p.append(h('p', null, cl.summary + '.'),
         h('div', { class: 'facts' }, h('span', null, 'Hit die: d' + cl.hitPoints.dieFaces), h('span', null, 'Primary: ' + cap(cl.primaryAbility)), h('span', null, 'Saves: ' + cl.proficiencies.savingThrows.map(cap).join(', '))),
-        expand('Proficiencies and equipment', h('div', { class: 'md' }, h('p', null, 'Armor: ' + cl.proficiencies.armor), h('p', null, 'Weapons: ' + cl.proficiencies.weapons), h('p', null, 'Starting wealth: ' + cl.startingWealth), mdBox(cl.startingEquipment))),
+        expand('Proficiencies and equipment', h('div', { class: 'md' }, h('p', null, 'Armor: ' + (cl.proficiencies.armor || 'None')), h('p', null, 'Weapons: ' + cl.proficiencies.weapons), h('p', null, 'Starting wealth: ' + cl.startingWealth), mdBox(cl.startingEquipment))),
         expand('About the ' + cl.name, mdBox(cl.lore)),
         cl.quickBuild ? expand('Quick build', mdBox(cl.quickBuild)) : null);
     }
@@ -1095,7 +1095,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 16.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 17.')));
     return wrap;
   }
 
