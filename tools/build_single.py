@@ -26,7 +26,7 @@ def js(p):
     # U+FFFD exists in a few SW5e source strings; keep it exactly, but written as an escape so the file stays clean text
     return s.replace('</script', '<\\/script').replace('<!--', '<\\!--').replace('\ufffd', '\\ufffd')
 
-scripts = ''.join('<script>%s</script>\n' % js(p) for p in ['data.js', 'lore.js', 'speciesimg.js', 'rules.js', 'app.js'])
+scripts = ''.join('<script>%s</script>\n' % js(p) for p in ['data.js', 'lore.js', 'speciesimg.js', 'planetart.js', 'rules.js', 'app.js'])
 body = read('index.html')
 body = re.search(r'<body>(.*?)<script src="data.js">', body, re.S).group(1)
 

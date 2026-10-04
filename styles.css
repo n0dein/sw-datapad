@@ -274,3 +274,5 @@ blockquote { margin: 0; }
 .gloss .gmeta{margin:0;text-align:left;white-space:nowrap}
 .gloss{padding:6px 0}
 .cover.small{background-size:contain;min-height:300px}
+a.btn{display:inline-block;text-decoration:none;line-height:1.4}
+.cover.small{background-color:#040b12}

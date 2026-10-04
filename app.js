@@ -173,11 +173,13 @@
     } }, 'Save'));
     const del = h('button', { class: 'btn sm warn', type: 'button' }, 'Remove');
     let fbOK = false;
-    if (opts.fallback) { const t = new Image(); t.onload = () => { fbOK = true; paint(); }; t.src = opts.fallback; }
+    let fbURL = '';
+    const fbList = [].concat(opts.fallback || []).filter(Boolean);
+    (function tryNext(i) { if (i >= fbList.length) return; const t = new Image(); t.onload = () => { fbOK = true; fbURL = fbList[i]; paint(); }; t.onerror = () => tryNext(i + 1); t.src = fbList[i]; })(0);
     function paint() {
       const has = !!S.imgs[key];
       const fb = !has && fbOK;
-      box.setAttribute('style', has ? bgImg(key) : fb ? 'background-image:url("' + opts.fallback + '")' : '');
+      box.setAttribute('style', has ? bgImg(key) : fb ? 'background-image:url("' + fbURL + '")' : '');
       empty.hidden = has || fb; del.hidden = !has;
       add.textContent = has || fb ? 'Replace image' : 'Add image';
     }
@@ -782,6 +784,12 @@
     return h('blockquote', { class: 'note', style: 'margin:0' }, h('p', null, '“' + f.quote + '”'), h('strong', null, f.who), f.src ? h('div', { class: 'sub' }, f.src) : null);
   }
 
+  function classArt(kind, item) {
+    const SI = window.SPECIES_IMG; if (!SI || !SI.classes) return [];
+    const ck = kind === 'classes' ? item.key : ((D.classes.find((c) => c.name === item.className) || {}).key);
+    return (SI.classes[ck] || []).map((f) => SI.classBase + f);
+  }
+
   function holoEntries(kind) {
     const lists = {
       species: { arr: D.species, label: 'Species', pick: (x) => x },
@@ -802,7 +810,7 @@
     if (fig) e.append(fig);
     const SI = window.SPECIES_IMG;
     const sf = kind === 'species' && SI && (SI.local && SI.local[key] || SI.files[key] && SI.base + SI.files[key]);
-    e.append(slot('holo:' + kind + ':' + key, { small: true, hint: 'Add a picture for this entry', fallback: sf || '' }));
+    e.append(slot('holo:' + kind + ':' + key, { small: true, hint: 'Add a picture for this entry', fallback: kind === 'species' ? (sf || '') : classArt(kind, item) }));
     if (kind === 'species') e.append(mdBox(item.lore), expand('Traits', h('div', null, (item.traits || []).map((t) => expand(t.name, mdBox(t.description))))));
     else if (kind === 'classes') e.append(mdBox(item.lore));
     else e.append(mdBox(item.intro));
@@ -878,7 +886,7 @@
     const sel = panel('Planet entries', field('Planet', selectEl(names.map((n) => ({ v: n, t: n })), key, (v) => { S.holoKey.planets = v; render(); }, { id: 'psel' }), 'psel'));
     const e = panel(key);
     const info = (L.planetInfo || {})[key];
-    e.append(slot('holo:planets:' + key, { small: true, hint: 'Add a picture of ' + key }));
+    e.append(slot('holo:planets:' + key, { small: true, hint: 'Add a picture of ' + key, fallback: window.PLANET_ART ? PLANET_ART(key) : '' }));
     if (info) e.append(h('p', { style: 'margin:10px 0 4px' }, info.about), info.places.length ? h('p', { class: 'sub', style: 'margin:0 0 10px' }, 'Notable places: ' + info.places.join(' · ')) : null);
     e.append(
       h('a', { class: 'btn sm', href: 'https://starwars.fandom.com/wiki/' + encodeURIComponent(key.replace(/ /g, '_')), target: '_blank', rel: 'noopener noreferrer' }, 'Open on Wookieepedia'));
