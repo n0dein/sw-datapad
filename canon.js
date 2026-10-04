@@ -30,7 +30,7 @@
   const APLAB = { c: 'Characters and droids', s: 'Species', l: 'Places', o: 'Groups', e: 'Events' };
 
   /* ---------- data ---------- */
-  const DATA_V = 'v4';
+  const DATA_V = 'v5';
   let ready = false, loadErr = '', loading = false, progress = '';
   let META = null, ITEMS = [], BYID = [], BYTITLE = new Map(), APPEARS = new Map(), BYKIND = {};
 
