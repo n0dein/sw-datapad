@@ -280,3 +280,8 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4}
 /* uniform image frames: same size everywhere, whole picture shown (see fit() in app.js) */
 .cover.small{aspect-ratio:auto;height:300px;min-height:300px;max-height:300px;background-size:contain;background-position:center center;background-repeat:no-repeat}
 .cover:not(.small){background-position:center top}
+
+.slinks{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}
+.slink{min-width:34px;height:30px;padding:0 8px;display:grid;place-items:center;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-decoration:none;color:var(--holo);background:rgba(4,11,18,.78);border:1px solid var(--holo-dim);border-radius:2px}
+.slink:active{background:rgba(111,230,255,.2)}
+html,body,button,a,select,input,.cover{touch-action:manipulation}

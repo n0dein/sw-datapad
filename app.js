@@ -203,7 +203,10 @@
       input.value = '';
     });
     link.addEventListener('click', () => { lrow.hidden = !lrow.hidden; if (!lrow.hidden) lin.focus(); });
-    box.append(empty, h('div', { class: 'bar' }, add, link, del, input), lrow);
+    if (opts.bare) box.append(empty);
+    else box.append(empty, h('div', { class: 'bar' }, add, link, del, input), lrow);
+    if (opts.links) box.append(h('div', { class: 'slinks' }, opts.links.map((l) =>
+      h('a', { class: 'slink', href: l.href, target: '_blank', rel: 'noopener noreferrer', title: l.title, 'aria-label': l.title }, l.text))));
     paint();
     return box;
   }
@@ -795,6 +798,14 @@
     return h('blockquote', { class: 'note', style: 'margin:0' }, h('p', null, '“' + f.quote + '”'), h('strong', null, f.who), f.src ? h('div', { class: 'sub' }, f.src) : null);
   }
 
+  function refLinks(name, star) {
+    const q = encodeURIComponent(name);
+    return [
+      { text: 'SW', title: 'Open on StarWars.com', href: star || 'https://www.starwars.com/search?q=' + q },
+      { text: 'W', title: 'Open on Wookieepedia', href: 'https://starwars.fandom.com/wiki/Special:Search?query=' + q }
+    ];
+  }
+
   function classArt(kind, item) {
     const SI = window.SPECIES_IMG; if (!SI || !SI.classes) return [];
     const ck = kind === 'classes' ? item.key : ((D.classes.find((c) => c.name === item.className) || {}).key);
@@ -821,7 +832,7 @@
     if (fig) e.append(fig);
     const SI = window.SPECIES_IMG;
     const sf = kind === 'species' && SI && (SI.local && SI.local[key] || SI.files[key] && SI.base + SI.files[key]);
-    e.append(slot('holo:' + kind + ':' + key, { small: true, hint: 'Add a picture for this entry', fallback: kind === 'species' ? (sf || '') : classArt(kind, item) }));
+    e.append(slot('holo:' + kind + ':' + key, { small: true, bare: true, links: refLinks(item.name), hint: 'No picture yet', fallback: kind === 'species' ? (sf || '') : classArt(kind, item) }));
     if (kind === 'species') e.append(mdBox(item.lore), expand('Traits', h('div', null, (item.traits || []).map((t) => expand(t.name, mdBox(t.description))))));
     else if (kind === 'classes') { e.append(mdBox(item.lore)); }
     else e.append(mdBox(item.intro));
@@ -914,10 +925,8 @@
     const sel = panel('Planet entries', field('Planet', selectEl(names.map((n) => ({ v: n, t: n })), key, (v) => { S.holoKey.planets = v; render(); }, { id: 'psel' }), 'psel'));
     const e = panel(key);
     const info = (L.planetInfo || {})[key];
-    e.append(slot('holo:planets:' + key, { small: true, hint: 'Add a picture of ' + key, fallback: planetURL(key) }));
+    e.append(slot('holo:planets:' + key, { small: true, bare: true, links: refLinks(key, planetPage(key)), hint: 'No picture yet', fallback: planetURL(key) }));
     if (info) e.append(h('p', { style: 'margin:10px 0 4px' }, info.about), info.places.length ? h('p', { class: 'sub', style: 'margin:0 0 10px' }, 'Notable places: ' + info.places.join(' · ')) : null);
-    e.append(
-      h('a', { class: 'btn sm', href: planetPage(key), target: '_blank', rel: 'noopener noreferrer' }, 'Open on StarWars.com'), ' ', h('a', { class: 'btn sm', href: 'https://starwars.fandom.com/wiki/' + encodeURIComponent(key.replace(/ /g, '_')), target: '_blank', rel: 'noopener noreferrer' }, 'Wookieepedia'));
     return h('div', { class: 'wrap', style: 'gap:14px' }, [sel, e]);
   }
 
