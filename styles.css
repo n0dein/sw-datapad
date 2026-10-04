@@ -276,3 +276,7 @@ blockquote { margin: 0; }
 .cover.small{background-size:contain;min-height:300px}
 a.btn{display:inline-block;text-decoration:none;line-height:1.4}
 .cover.small{background-color:#040b12}
+
+/* uniform image frames: same size everywhere, whole picture shown (see fit() in app.js) */
+.cover.small{aspect-ratio:auto;height:300px;min-height:300px;max-height:300px;background-size:contain;background-position:center center;background-repeat:no-repeat}
+.cover:not(.small){background-position:center top}

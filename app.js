@@ -176,10 +176,21 @@
     let fbURL = '';
     const fbList = [].concat(opts.fallback || []).filter(Boolean);
     (function tryNext(i) { if (i >= fbList.length) return; const t = new Image(); t.onload = () => { fbOK = true; fbURL = fbList[i]; paint(); }; t.onerror = () => tryNext(i + 1); t.src = fbList[i]; })(0);
+    /* show the whole picture, never stretched, never enlarged past its own pixels (so it stays sharp) */
+    function fit() {
+      const n = box._nat, W = box.clientWidth, H = box.clientHeight;
+      if (!n || !W || !H) return;
+      const k = Math.min(W / n[0], H / n[1], 1);
+      box.style.backgroundSize = Math.round(n[0] * k) + 'px ' + Math.round(n[1] * k) + 'px';
+    }
+    if (opts.small && window.ResizeObserver) new ResizeObserver(fit).observe(box);
     function paint() {
       const has = !!S.imgs[key];
       const fb = !has && fbOK;
-      box.setAttribute('style', has ? bgImg(key) : fb ? 'background-image:url("' + fbURL + '")' : '');
+      const cur = has ? S.imgs[key] : fb ? fbURL : '';
+      box.setAttribute('style', cur ? 'background-image:url("' + cur.replace(/"/g, '%22') + '")' : '');
+      box._nat = null;
+      if (cur && opts.small) { const t = new Image(); t.onload = () => { box._nat = [t.naturalWidth, t.naturalHeight]; fit(); }; t.src = cur; }
       empty.hidden = has || fb; del.hidden = !has;
       add.textContent = has || fb ? 'Replace image' : 'Add image';
     }
