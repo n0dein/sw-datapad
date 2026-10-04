@@ -823,7 +823,7 @@
         subs.forEach((s) => {
           const body = h('div');
           const d = h('details', null, h('summary', null, s.name), body);
-          d.addEventListener('toggle', () => { if (d.open && !body.childNodes.length) body.append(slot('holo:subclasses:' + s.key, { small: true, hint: 'Add a picture for ' + s.name }), mdBox(s.intro)); });
+          d.addEventListener('toggle', () => { if (d.open && !body.childNodes.length) body.append(mdBox(s.intro)); });
           sp.append(d);
         });
         out.push(sp);
