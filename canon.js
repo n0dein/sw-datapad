@@ -315,13 +315,13 @@
     const count = h('p', { class: 'sub', style: 'margin:0' });
     const input = h('input', { type: 'search', placeholder: 'Search titles or series', 'aria-label': 'Search the timeline', value: TS.q, autocomplete: 'off' });
     const typeChips = h('div', { class: 'chips wrapchips' }, [...Object.keys(MLAB), 'event'].map((t) =>
-      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; TS.shown = 80; DP.render(); } }, t === 'event' ? 'Events' : (t === 'story' ? 'Stories' : MLAB[t] + 's'))));
-    const eraSel = DP.selectEl([{ v: -1, t: 'All eras' }].concat(ERA().map((n, i) => ({ v: i, t: n }))), TS.era, (v) => { TS.era = +v; TS.shown = 80; build(); }, { 'aria-label': 'Era' });
-    const orderBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => { TS.order = TS.order === 'universe' ? 'release' : 'universe'; TS.shown = 80; DP.render(); } },
+      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; TS.focus = null; DP.render(); } }, t === 'event' ? 'Events' : (t === 'story' ? 'Stories' : MLAB[t] + 's'))));
+    const eraSel = DP.selectEl([{ v: -1, t: 'All eras' }].concat(ERA().map((n, i) => ({ v: i, t: n }))), TS.era, (v) => { TS.era = +v; TS.focus = null; build(); }, { 'aria-label': 'Era' });
+    const orderBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => { TS.order = TS.order === 'universe' ? 'release' : 'universe'; TS.focus = null; DP.render(); } },
       TS.order === 'universe' ? 'Order: story time' : 'Order: release date');
-    const charBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; TS.shown = 80; DP.render(); }, 'Search characters') },
+    const charBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; TS.focus = null; DP.render(); }, 'Search characters') },
       TS.char != null ? 'Character: ' + (BYID[TS.char].n || BYID[TS.char].t) + '  ×' : 'Pick a character');
-    if (TS.char != null) charBtn.onclick = () => { TS.char = null; DP.render(); };
+    if (TS.char != null) charBtn.onclick = () => { TS.char = null; TS.focus = null; DP.render(); };
 
     function build() {
       TS.q = input.value;
@@ -342,20 +342,35 @@
       }
       count.textContent = dated.length.toLocaleString() + ' on the timeline' + (undated ? ', ' + undated.toLocaleString() + ' without a ' + (TS.order === 'universe' ? 'story date' : 'release date') : '');
       out.replaceChildren();
-      let lastHead = '';
-      dated.slice(0, TS.shown).forEach((m) => {
-        const head = TS.order === 'universe' ? (m.y[0] === m.y[1] ? fy(m.y[0]) : fy(m.y[0])) : m.r.slice(0, 4);
-        if (head !== lastHead) { out.append(h('div', { class: 'tlhead' }, head)); lastHead = head; }
-        out.append(h('button', { class: 'crow slim', type: 'button', onclick: () => open(m.i, 'timeline') },
+      let lastHead = '', anchor = null, focusEl = null;
+      const uni = TS.order === 'universe';
+      const pm = (BYKIND.media || []).find((m) => m.t === 'Star Wars: Episode I The Phantom Menace');
+      const pivot = uni ? -32 : 1999;
+      dated.forEach((m) => {
+        const key = uni ? m.y[0] : +m.r.slice(0, 4);
+        const head = uni ? fy(m.y[0]) : m.r.slice(0, 4);
+        if (head !== lastHead) {
+          const hd = h('div', { class: 'tlhead' }, head); out.append(hd); lastHead = head;
+          if (!anchor && key >= pivot) anchor = hd;
+        }
+        const row = h('button', { class: 'crow slim tlrow', type: 'button', onclick: () => { TS.focus = m.i; open(m.i, 'timeline'); } },
           h('strong', null, m.n || m.t),
-          h('span', { class: 'sub' }, [m.k === 'event' ? 'Event' : MLAB[m.m], m.s, TS.order === 'universe' ? (m.r ? m.r.slice(0, 4) + ' release' : '') : yrs(m.y)].filter(Boolean).join(' · '))));
+          h('span', { class: 'sub' }, [m.k === 'event' ? 'Event' : MLAB[m.m], m.s, uni ? (m.r ? m.r.slice(0, 4) + ' release' : '') : yrs(m.y)].filter(Boolean).join(' · ')));
+        if (TS.focus === m.i) focusEl = row;
+        if (pm && m.i === pm.i && uni) { row.classList.add('tlstart'); }
+        out.append(row);
       });
-      if (dated.length > TS.shown) out.append(h('button', { class: 'btn', type: 'button', style: 'width:100%', onclick: () => { TS.shown += 100; build(); } }, 'Show more'));
+      const target = focusEl || anchor;
+      if (target && !TS.noScroll) setTimeout(() => { try { target.scrollIntoView({ block: 'start' }); } catch (e) {} }, 30);
+      TS.noScroll = false;
+      if (dated.length) out.append(h('div', { class: 'tlfab' },
+        h('button', { class: 'btn sm', type: 'button', onclick: () => wrap.scrollIntoView({ block: 'start' }) }, '\u2191 Filters'),
+        anchor ? h('button', { class: 'btn sm', type: 'button', onclick: () => anchor.scrollIntoView({ block: 'start' }) }, '\u2605 Episode I') : null));
       if (!dated.length) out.append(h('p', { class: 'empty' }, 'Nothing matches those filters.'));
     }
-    input.addEventListener('input', debounce(() => { TS.shown = 80; build(); }, 140));
+    input.addEventListener('input', debounce(() => { TS.focus = null; build(); }, 140));
     wrap.append(panel('Story order',
-      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Everything in canon, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date.'),
+      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Everything in canon, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
       input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn), count), out);
     build();
     return wrap;

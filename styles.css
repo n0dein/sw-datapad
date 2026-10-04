@@ -365,3 +365,8 @@ body.calm #app::before { display: none; }
 .credit { font-size: .75rem; margin: 4px 0 0; }
 .chip.on { background: var(--holo); color: var(--ground); }
 .srow.pickrow{justify-content:space-between;padding:10px 0;color:var(--text)}.srow.pickrow .v{color:var(--holo)}
+
+.tlhead { scroll-margin-top: 0; }
+.tlrow.tlstart strong::after { content: ' \2605'; color: var(--amber); }
+.tlfab { position: sticky; bottom: 8px; z-index: 4; align-self: flex-end; display: flex; gap: 6px; }
+.tlfab .btn { background: var(--panel); box-shadow: 0 0 10px rgba(0,0,0,.6); }
