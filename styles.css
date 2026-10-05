@@ -120,7 +120,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .btn[disabled] { opacity: .4; }
 .btns { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; margin: 0 -16px; padding-inline: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; overflow: visible; padding-bottom: 6px; margin: 0; padding-inline: 0; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
   flex: none; background: var(--panel); border: 1px solid var(--line); color: var(--muted); padding: 8px 14px; min-height: 40px; cursor: pointer;
