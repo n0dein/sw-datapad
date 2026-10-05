@@ -378,6 +378,12 @@
   /* -------------------------------------------------------------- views */
   const lineage = (d) => [d.species && d.species.name, d.cls ? d.cls.name + (d.arch ? ' (' + d.arch.name + ')' : '') : '', 'Lv ' + d.lvl].filter(Boolean).join(' · ');
 
+  const hasMech = (c) => !!(c.speciesKey || c.classKey || c.backgroundKey);
+  const isSW = (c) => (c.sw5e === undefined ? hasMech(c) : !!c.sw5e);
+  const prof = (c) => (c.profile = c.profile || {});
+  const profLine = (c) => [prof(c).species, prof(c).role, prof(c).era].filter(Boolean).join(' \u00b7 ');
+  const ERAS_GEN = ['Dawn of the Jedi', 'Old Republic', 'High Republic', 'Fall of the Jedi', 'Reign of the Empire', 'Age of Rebellion', 'The New Republic', 'Rise of the First Order'];
+
   /* ---- PDF export ---- */
   function loadScript(src) {
     return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error(src)); document.head.append(s); });
@@ -408,7 +414,7 @@
   }
 
   function newChar() {
-    const c = R.newCharacter();
+    const c = R.newCharacter(); c.sw5e = false; c.profile = {};
     S.chars.push(c); touch(c); flush();
     S.sec = 'basics';
     S.sec = 'basics'; openChar(c.id, 'build');
@@ -424,7 +430,7 @@
       grid.append(h('div', { class: 'cwrap' },
         h('button', { class: 'card', type: 'button', onclick: () => openChar(c.id, 'sheet') },
           h('span', { class: 'pic', style: bgImg(c.id + ':cover') }, has ? null : icon('user')),
-          h('span', { class: 'meta' }, h('strong', null, c.name || 'Unnamed'), h('span', null, lineage(d)))),
+          h('span', { class: 'meta' }, h('strong', null, c.name || 'Unnamed'), h('span', null, isSW(c) ? lineage(d) : profLine(c)))),
         h('button', { class: 'xbtn on-card', type: 'button', 'aria-label': 'Delete ' + (c.name || 'character'), onclick: () => askDelete(c.id) }, '\u00d7')));
     });
     grid.append(h('button', { class: 'card new', type: 'button', onclick: newChar }, icon('plus'), 'New character'));
@@ -434,8 +440,23 @@
   }
 
   /* ---- sheet ---- */
+  function viewSheetGeneric(c) {
+    const p = prof(c), wrap = h('div', { class: 'wrap' }), has = !!S.imgs[c.id + ':cover'];
+    wrap.append(h('section', { class: 'panel' }, h('div', { class: 'hero' },
+      h('div', { class: 'cover', style: bgImg(c.id + ':cover') }, has ? null : h('div', { class: 'empty-art' }, icon('user'))),
+      h('div', null, h('h2', null, c.name || 'Unnamed character'), c.concept ? h('div', { class: 'sub' }, c.concept) : null,
+        h('div', { class: 'facts' }, [p.species, p.homeworld && 'From ' + p.homeworld, p.era, p.affiliation, p.role, p.age && 'Age ' + p.age].filter(Boolean).map((t) => h('span', null, t)))))));
+    const tags = (p.traits || '').split(',').map((t) => t.trim()).filter(Boolean);
+    if (tags.length) wrap.append(panel('Traits', h('div', { class: 'chips wrapchips' }, tags.map((t) => h('span', { class: 'tag' }, t)))));
+    [['appearance', 'Appearance'], ['personality', 'Personality'], ['backstory', 'Backstory'], ['goals', 'Goals and conflicts']].forEach(([k, t]) => { if (p[k]) wrap.append(panel(t, h('p', { style: 'white-space:pre-wrap;margin:0' }, p[k]))); });
+    const n = c.notes && c.notes.general; if (n) wrap.append(panel('Notes', h('p', { style: 'white-space:pre-wrap;margin:0' }, n)));
+    if (!wrap.querySelector('.tag') && !p.appearance && !p.personality && !p.backstory && !p.goals && !n) wrap.append(h('p', { class: 'empty' }, 'Nothing here yet. Use the Character section to fill it in.'));
+    return wrap;
+  }
+
   function viewSheet() {
     const c = cur(); if (!c) return noChar();
+    if (!isSW(c)) return viewSheetGeneric(c);
     const d = R.derive(D, c);
     const wrap = h('div', { class: 'wrap' });
 
@@ -544,12 +565,15 @@
   }
 
   /* ---- builder ---- */
-  const SECTIONS = [['basics', 'Basics'], ['species', 'Species'], ['class', 'Class'], ['background', 'Background'], ['abilities', 'Abilities'],
+  const SW_SECT = [['basics', 'Basics'], ['species', 'Species'], ['class', 'Class'], ['background', 'Background'], ['abilities', 'Abilities'],
     ['skills', 'Skills'], ['gear', 'Gear'], ['powers', 'Powers'], ['feats', 'Feats'], ['story', 'Story'], ['notes', 'Notes']];
 
+  const GEN_SECT = [['basics', 'Character'], ['notes', 'Notes']];
   function viewBuild() {
     const c = cur(); if (!c) return noChar('Start a new character from the roster, or open one to edit it.');
     const wrap = h('div', { class: 'wrap' });
+    const SECTIONS = isSW(c) ? SW_SECT : GEN_SECT;
+    if (S.sec !== 'sheet' && !SECTIONS.some((x) => x[0] === S.sec)) S.sec = 'basics';
     wrap.append(h('div', { class: 'chips', role: 'group', 'aria-label': 'Character sections' }, [['sheet', 'Summary']].concat(SECTIONS).map(([id, label]) =>
       h('button', { class: 'chip', type: 'button', 'aria-pressed': String(S.sec === id), onclick: () => { S.sec = id; render(true); } }, label))));
     if (S.sec === 'sheet') { wrap.append(viewSheet()); return wrap; }
@@ -572,15 +596,39 @@
 
   const BUILD = {};
 
+  function pickField(c, store, key, label, kinds, ph) {
+    const f = textBind(c, store, key, { label, line: true, ph });
+    if (window.CANON && window.CANON.pick) f.append(h('button', { class: 'btn sm', type: 'button', style: 'margin-top:6px', onclick: () => window.CANON.pick(kinds, (e) => { store[key] = e.n || e.t; touch(c); render(); }, 'Search the Holopedia') }, 'Pick from Holopedia'));
+    return f;
+  }
   BUILD.basics = (c) => {
-    const lvl = selectEl(Array.from({ length: 20 }, (_, i) => ({ v: String(i + 1), t: 'Level ' + (i + 1) })), String(c.level), (v) => { c.level = +v; touch(c); }, { id: 'lvl' });
-    return [
-      panel('Character',
-        textBind(c, c, 'name', { label: 'Name', line: true, ph: 'Character name' }),
-        textBind(c, c, 'concept', { label: 'One-line concept', line: true, ph: 'Example: disgraced pilot with a debt to settle' }),
-        field('Level', lvl, 'lvl')),
-      panel('Cover portrait', h('p', { class: 'sub' }, 'Shown on the roster and the top of your sheet. Tall images work best.'), slot(c.id + ':cover', { hint: 'Add a full-size portrait' }))
-    ];
+    const sw = isSW(c);
+    const out = [panel('Character',
+      textBind(c, c, 'name', { label: 'Name', line: true, ph: 'Character name' }),
+      textBind(c, c, 'concept', { label: 'One-line concept', line: true, ph: 'Example: disgraced pilot with a debt to settle' }),
+      sw ? field('Level', selectEl(Array.from({ length: 20 }, (_, i) => ({ v: String(i + 1), t: 'Level ' + (i + 1) })), String(c.level), (v) => { c.level = +v; touch(c); }, { id: 'lvl' }), 'lvl') : null,
+      h('label', { class: 'check', style: 'display:flex;gap:10px;align-items:center;margin-top:10px' },
+        h('input', { type: 'checkbox', checked: sw, onchange: (e) => { c.sw5e = e.target.checked; touch(c); render(); } }),
+        h('span', null, 'This is an SW5e game character')),
+      h('p', { class: 'sub', style: 'margin:4px 0 0' }, sw ? 'Species, class, abilities and the other game options are in the sections above. Untick to hide them; nothing is deleted.' : 'Tick this only if the character is for the SW5e tabletop game. It adds species, class, abilities, gear and the rest.'))];
+    if (!sw) {
+      const p = prof(c);
+      out.push(panel('About',
+        pickField(c, p, 'species', 'Species', ['species'], 'Example: Twi\u2019lek'),
+        pickField(c, p, 'homeworld', 'Homeworld', ['planet'], 'Example: Ryloth'),
+        field('Era', selectEl([{ v: '', t: 'Not set' }].concat(ERAS_GEN.map((e) => ({ v: e, t: e }))), p.era || '', (v) => { p.era = v; touch(c); }, { id: 'gera' }), 'gera'),
+        pickField(c, p, 'affiliation', 'Affiliation', ['org'], 'Example: Rebel Alliance'),
+        textBind(c, p, 'role', { label: 'Role', line: true, ph: 'Example: smuggler, healer, Jedi Knight' }),
+        textBind(c, p, 'age', { label: 'Age', line: true, ph: 'Example: 34' }),
+        textBind(c, p, 'traits', { label: 'Traits', line: true, ph: 'Comma separated: stubborn, loyal, secretly afraid of heights' })));
+      out.push(panel('Profile',
+        textBind(c, p, 'appearance', { label: 'Appearance', rows: 3, ph: 'What someone notices first.' }),
+        textBind(c, p, 'personality', { label: 'Personality', rows: 3, ph: 'How they act, talk and think.' }),
+        textBind(c, p, 'backstory', { label: 'Backstory', rows: 5, ph: 'Where they came from and what shaped them.' }),
+        textBind(c, p, 'goals', { label: 'Goals and conflicts', rows: 3, ph: 'What they want and what stands in the way.' })));
+    }
+    out.push(panel('Cover portrait', h('p', { class: 'sub' }, 'Shown on the roster and the top of your sheet. Tall images work best.'), slot(c.id + ':cover', { hint: 'Add a full-size portrait' })));
+    return out;
   };
 
   function describeInc(inc) {
@@ -1103,7 +1151,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 27.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 28.')));
     return wrap;
   }
 

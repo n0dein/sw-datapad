@@ -454,5 +454,10 @@
     return wrap;
   }
 
-  window.CANON = { leave: () => { TS.seen = false; }, viewIndex, viewTimeline, title, hasDetail, back, open };
+  async function pick(kinds, cb, label) {
+    if (!ready) { toast('Loading the Holopedia\u2026'); load(); for (let i = 0; i < 120 && !ready && !loadErr; i++) await new Promise((r) => setTimeout(r, 250)); }
+    if (!ready) { toast('The Holopedia could not be loaded here. Type the name instead.'); return; }
+    pickEntity(kinds, cb, label);
+  }
+  window.CANON = { pick, leave: () => { TS.seen = false; }, viewIndex, viewTimeline, title, hasDetail, back, open };
 })();
