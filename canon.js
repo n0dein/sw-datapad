@@ -10,7 +10,7 @@
   const KINDS = [['char', 'Characters'], ['planet', 'Planets'], ['species', 'Species'], ['org', 'Groups'], ['place', 'Places'],
     ['ship', 'Ships'], ['droid', 'Droids'], ['event', 'Events'], ['media', 'Media']];
   const KLAB = { char: 'Character', planet: 'Planet', species: 'Species', org: 'Group', place: 'Place', ship: 'Ship', droid: 'Droid', event: 'Event', media: 'Media' };
-  const MLAB = { film: 'Film', tv: 'TV episode', comic: 'Comic', book: 'Book', story: 'Story', game: 'Game' };
+  const MLAB = { film: 'Movie', tv: 'TV Episode', comic: 'Comic', book: 'Book', story: 'Story', game: 'Game' };
   const FILTERS = {
     char: [['er', 'Era'], ['species', 'Species'], ['affiliation', 'Group'], ['type', 'Type'], ['homeworld', 'Homeworld'], ['gender', 'Gender']],
     planet: [['er', 'Era'], ['region', 'Region'], ['climate', 'Climate'], ['terrain', 'Terrain'], ['species', 'Species'], ['affiliation', 'Group']],
@@ -30,7 +30,7 @@
   const APLAB = { c: 'Characters and droids', s: 'Species', l: 'Places', o: 'Groups', e: 'Events' };
 
   /* ---------- data ---------- */
-  const DATA_V = 'v5';
+  const DATA_V = 'v6';
   let ready = false, loadErr = '', loading = false, progress = '';
   let META = null, ITEMS = [], BYID = [], BYTITLE = new Map(), APPEARS = new Map(), BYKIND = {};
 
@@ -73,7 +73,7 @@
       });
       ready = true; progress = '';
     } catch (e) {
-      loadErr = 'The canon data could not be loaded (' + e.message + '). It is available in the installed app and on the Netlify site, not in the Claude preview.';
+      loadErr = 'The canon data could not be loaded (' + e.message + '). It is available in the installed app, not in this preview.';
     }
     loading = false;
     DP.render();
@@ -90,7 +90,7 @@
 
   /* ---------- shared bits ---------- */
   const ST = { kind: 'char', q: '', filters: {}, shown: 40, detail: null, stack: [], from: '', more: {} };
-  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: false }, era: -1, char: null, q: '', order: 'release', shown: 80, mode: 'overview', open: new Set(), seen: false };
+  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: false }, era: -1, char: null, q: '', order: 'chrono', shown: 80, open: new Set(), seen: false };
 
   function title() { return ST.detail != null && BYID[ST.detail] ? BYID[ST.detail].n || BYID[ST.detail].t : 'The Holopedia'; }
   function hasDetail() { return ST.detail != null; }
@@ -132,7 +132,7 @@
       body.replaceChildren(h('button', { class: 'pick', type: 'button', onclick: () => { close(); onPick(null); } }, h('strong', null, 'Any ' + label.toLowerCase())));
       list.slice(0, 200).forEach(([v, n]) => body.append(h('button', { class: 'pick', type: 'button', onclick: () => { close(); onPick(v); } }, h('strong', null, v), h('span', null, n + (n === 1 ? ' entry' : ' entries')))));
       if (list.length > 200) body.append(h('p', { class: 'sub' }, 'Showing 200 of ' + list.length + '. Keep typing to narrow the list.'));
-      if (!list.length) body.append(h('p', { class: 'empty' }, 'Nothing matches that search.'));
+      if (!list.length) body.append(h('p', { class: 'empty' }, 'No results for that search.'));
     }
     input.addEventListener('input', paint); paint();
     document.body.append(scrim); input.focus();
@@ -235,7 +235,7 @@
       count.textContent = items.length.toLocaleString() + (items.length === 1 ? ' entry' : ' entries') + (q ? '' : ', most featured first');
       results.replaceChildren();
       lazy(results, items, (e) => row(e), 40, 60);
-      if (!items.length) results.append(h('p', { class: 'empty' }, 'Nothing matches. Try fewer letters or clear a filter.'));
+      if (!items.length) results.append(h('p', { class: 'empty' }, 'No results. Try fewer letters or remove a filter.'));
       active.replaceChildren(...Object.keys(ST.filters).map((f) => {
         const lab = FILTERS[ST.kind].find((x) => x[0] === f);
         return h('button', { class: 'chip on', type: 'button', onclick: () => { delete ST.filters[f]; ST.shown = 40; list(); } }, (lab ? lab[1] : f) + ': ' + ST.filters[f] + '  ×');
@@ -325,7 +325,7 @@
 
   /* ---------- Timeline ---------- */
   const PLURAL = { film: 'Movies', tv: 'TV Shows', comic: 'Comics', book: 'Books', story: 'Stories', game: 'Games', event: 'Events' };
-  const BADGE = { film: ['M', 'Movie'], tv: ['T', 'TV show'], comic: ['C', 'Comic'], book: ['B', 'Book'], story: ['S', 'Story'], game: ['G', 'Game'], event: ['E', 'Event'] };
+  const BADGE = { film: ['M', 'Movie'], tv: ['TV', 'TV show'], comic: ['C', 'Comic'], book: ['B', 'Book'], story: ['S', 'Story'], game: ['G', 'Game'], event: ['E', 'Event'] };
   const TYPE_RANK = { film: 0, tv: 1, event: 2, game: 3, comic: 4, book: 5, story: 6 };
   const ERA_LO = [-1e9, -25000, -500, -100, -19, 0, 5, 34];
   const eraOf = (y) => { let n = 0; ERA_LO.forEach((lo, i) => { if (y >= lo) n = i; }); return n; };
@@ -346,73 +346,26 @@
     const count = h('p', { class: 'sub', style: 'margin:0' });
     const active = h('div', { class: 'chips wrapchips' });
     const input = h('input', { type: 'search', placeholder: 'Search titles or series', 'aria-label': 'Search the timeline', value: TS.q, autocomplete: 'off' });
-    const uni = () => TS.order === 'universe';
+    const uni = () => TS.order === 'chrono';
     const keyYear = (m) => (uni() ? m.y[0] : +m.r.slice(0, 4));
     const cmp = (a, b) => uni()
-      ? a.y[0] - b.y[0] || (TYPE_RANK[tkey(a)] - TYPE_RANK[tkey(b)]) || (a.r || '').localeCompare(b.r || '') || a.t.localeCompare(b.t)
-      : a.r.localeCompare(b.r) || (TYPE_RANK[tkey(a)] - TYPE_RANK[tkey(b)]) || a.t.localeCompare(b.t);
+      ? a.y[0] - b.y[0] || (TYPE_RANK[tkey(a)] - TYPE_RANK[tkey(b)]) || (a.s || '').localeCompare(b.s || '') || (a.sn || 0) - (b.sn || 0) || (a.ep || 0) - (b.ep || 0) || (a.r || '').localeCompare(b.r || '') || a.t.localeCompare(b.t)
+      : a.r.localeCompare(b.r) || (a.s || '').localeCompare(b.s || '') || (a.sn || 0) - (b.sn || 0) || (a.ep || 0) - (b.ep || 0) || a.t.localeCompare(b.t);
 
-    function itemRow(m, nested) {
-      const sub = [m.k === 'event' ? '' : (m.s && TS.mode === 'all' ? m.s : ''), uni() ? fy(m.y[0]) : (m.r || '').slice(0, 4)].filter(Boolean).join(' · ');
-      const row = h('div', { class: 'trow' + (nested ? ' nested' : '') + (m.t === 'Star Wars: Episode I The Phantom Menace' ? ' tlstart' : '') },
+    const epTag = (m) => (m.sn ? 'S' + m.sn : '') + (m.sn && m.ep ? ' ' : '') + (m.ep ? 'E' + m.ep : '');
+    function itemRow(m) {
+      const date = uni() ? fy(m.y[0]) : (m.r || '').slice(0, 4);
+      const sub = [m.k === 'event' ? 'Event' : MLAB[m.m], m.s, m.m === 'tv' ? epTag(m) : '', date].filter(Boolean).join(' \u00b7 ');
+      return h('div', { class: 'trow' },
         h('button', { class: 'crow slim', type: 'button', onclick: () => { TS.focus = m.i; open(m.i, 'timeline'); } },
-          badge(tkey(m)), h('span', { class: 'tt' }, h('strong', null, m.n || m.t), sub ? h('span', { class: 'sub' }, sub) : null)),
+          badge(tkey(m)), h('span', { class: 'tt' }, h('strong', null, m.n || m.t), h('span', { class: 'sub' }, sub))),
         extLink(wookie(m), 'Open ' + (m.n || m.t) + ' on Wookieepedia'));
-      return row;
     }
-
-    function groups(dated) {
-      // overview: collapse series into one row; clusters split where a series jumps more than 3 years
-      const by = new Map(); const solo = [];
-      dated.forEach((m) => {
-        if (m.k === 'event' || m.m === 'film' || !m.s) { solo.push({ items: [m], start: m }); return; }
-        const k = m.m + '|' + m.s; if (!by.has(k)) by.set(k, []); by.get(k).push(m);
-      });
-      const gs = solo;
-      by.forEach((arr, k) => {
-        arr.sort(cmp);
-        let cur = [];
-        arr.forEach((m) => {
-          const prev = cur[cur.length - 1];
-          cur.push(m);
-        });
-        if (cur.length) {
-          const span = uni() ? cur[cur.length - 1].y[0] - cur[0].y[0] : 0;
-          if (span > 5) cur.forEach((m) => gs.push({ items: [m], start: m })); // anthologies that jump across eras stay episode by episode
-          else gs.push({ items: cur, start: cur[0], series: arr[0].s });
-        }
-      });
-      gs.forEach((g) => { if (g.items.length === 1) g.series = null; });
-      gs.sort((a, b) => cmp(a.start, b.start));
-      return gs;
-    }
-
-    function groupRow(g) {
-      const first = g.items[0], t = tkey(first);
-      const yr = uni() ? yrs([Math.min(...g.items.map((i) => i.y[0])), Math.max(...g.items.map((i) => i.y[0]))]) : '';
-      const n = g.items.length;
-      const kids = h('div', { class: 'tkids', hidden: true });
-      const key = t + '|' + g.series + '|' + first.i;
-      const btn = h('button', { class: 'crow slim', type: 'button', 'aria-expanded': 'false' },
-        badge(t, n), h('span', { class: 'tt' }, h('strong', null, g.series), h('span', { class: 'sub' }, [n + (t === 'tv' ? ' episodes' : t === 'comic' ? ' issues' : ' entries'), yr].filter(Boolean).join(' · '))), h('span', { class: 'caret' }, '▾'));
-      const toggle = () => {
-        const open_ = kids.hidden;
-        if (open_ && !kids.childNodes.length) g.items.forEach((m) => kids.append(itemRow(m, true)));
-        kids.hidden = !open_; btn.setAttribute('aria-expanded', String(open_)); btn.classList.toggle('open', open_);
-        if (open_) TS.open.add(key); else TS.open.delete(key);
-      };
-      btn.onclick = toggle;
-      const row = h('div', { class: 'tgroup' }, h('div', { class: 'trow' }, btn, extLink(wookie({ t: g.series }), 'Open ' + g.series + ' on Wookieepedia')), kids);
-      if (TS.open.has(key)) toggle();
-      return row;
-    }
-
     const TYPES = ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'];
     function summary() {
       active.replaceChildren();
       const add = (t, fn) => active.append(h('button', { class: 'chip on', type: 'button', onclick: () => { fn(); build(); } }, t + '  \u00d7'));
-      if (uni()) add('Story Order', () => { TS.order = 'release'; });
-      if (TS.mode === 'all') add('Every Entry', () => { TS.mode = 'overview'; });
+      if (!uni()) add('Release', () => { TS.order = 'chrono'; });
       if (TS.era >= 0) add(ERA()[TS.era], () => { TS.era = -1; });
       if (TS.char != null) add(BYID[TS.char].n || BYID[TS.char].t, () => { TS.char = null; });
       const changed = TYPES.some((t) => !!TS.types[t] !== (t !== 'event'));
@@ -428,16 +381,15 @@
       function paint() {
         body.replaceChildren(
           h('h3', { style: 'color:var(--holo);margin-bottom:8px' }, 'Filters'),
-          pick2('Order', [['release', 'Release Date'], ['universe', 'Story Order']], TS.order, (v) => { TS.order = v; }),
-          pick2('Show', [['overview', 'Movies & Shows'], ['all', 'Every Entry']], TS.mode, (v) => { TS.mode = v; }),
+          pick2('Order', [['chrono', 'Chronological'], ['release', 'Release']], TS.order, (v) => { TS.order = v; }),
           pick2('Era', [[-1, 'All Eras']].concat(ERA().map((n, i) => [i, n])), TS.era, (v) => { TS.era = +v; }),
           h('label', { class: 'mrow' }, h('span', null, 'Character'),
             h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; build(); paint(); }, 'Search characters') }, TS.char != null ? (BYID[TS.char].n || BYID[TS.char].t) : 'Any')),
-          h('div', { class: 'lbl', style: 'margin-top:10px' }, 'Types' + (TS.mode === 'overview' ? ' (Every Entry adds comics, books, games and stories)' : '')),
-          h('div', { class: 'chips wrapchips' }, TYPES.filter((t) => TS.mode !== 'overview' || t === 'film' || t === 'tv' || t === 'event').map((t) =>
+          h('div', { class: 'lbl', style: 'margin-top:10px' }, 'Types'),
+          h('div', { class: 'chips wrapchips' }, TYPES.map((t) =>
             h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; build(); paint(); } }, PLURAL[t]))),
           h('div', { class: 'btns', style: 'margin-top:12px' },
-            h('button', { class: 'btn', type: 'button', onclick: () => { TS.order = 'release'; TS.mode = 'overview'; TS.era = -1; TS.char = null; TYPES.forEach((t) => { TS.types[t] = t !== 'event'; }); build(); paint(); } }, 'Reset'),
+            h('button', { class: 'btn', type: 'button', onclick: () => { TS.order = 'chrono'; TS.era = -1; TS.char = null; TYPES.forEach((t) => { TS.types[t] = t !== 'event'; }); build(); paint(); } }, 'Reset'),
             h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done')));
       }
       paint(); document.body.append(scrim);
@@ -447,8 +399,7 @@
       TS.q = input.value;
       const q = input.value.trim().toLowerCase(), toks = q.split(/\s+/).filter(Boolean);
       let items = [];
-      const ovTypes = { film: 1, tv: 1 };
-      (BYKIND.media || []).forEach((m) => { if (TS.types[m.m] && !SKIP_TITLE.test(m.t) && (TS.mode !== 'overview' || ovTypes[m.m])) items.push(m); });
+      (BYKIND.media || []).forEach((m) => { if (TS.types[m.m] && !SKIP_TITLE.test(m.t)) items.push(m); });
       if (TS.types.event && TS.char == null) (BYKIND.event || []).forEach((m) => items.push(m));
       if (TS.char != null) { const ok = new Set(APPEARS.get(TS.char) || []); items = items.filter((m) => ok.has(m.i)); }
       if (toks.length) items = items.filter((m) => toks.every((t) => (m._key + ' ' + (m.s || '').toLowerCase()).indexOf(t) >= 0));
@@ -456,9 +407,8 @@
       const dated = uni() ? items.filter((m) => m.y) : items.filter((m) => m.r && m.k === 'media');
       const undated = items.length - dated.length;
       dated.sort(cmp);
-      const list = TS.mode === 'overview' ? groups(dated) : dated.map((m) => ({ items: [m], start: m }));
-      count.textContent = (TS.mode === 'overview' ? list.length.toLocaleString() + ' entries (' + dated.length.toLocaleString() + ' episodes, issues and more)' : dated.length.toLocaleString() + ' entries') +
-        (undated ? ', ' + undated.toLocaleString() + ' without a ' + (uni() ? 'story date' : 'release date') : '');
+      const list = dated.map((m) => ({ items: [m], start: m }));
+      count.textContent = dated.length.toLocaleString() + ' entries' + (undated ? ', ' + undated.toLocaleString() + ' undated' : '');
       summary();
       out.replaceChildren();
       let lastHead = '', lastEra = -1, focusEl = null;
@@ -467,18 +417,18 @@
         if (uni()) { const en = eraOf(m.y[0]); if (en !== lastEra) { out.append(h('div', { class: 'tlera' }, ERA()[en])); lastEra = en; } }
         const head = uni() ? fy(m.y[0]) : m.r.slice(0, 4);
         if (head !== lastHead) { out.append(h('div', { class: 'tlhead' }, head)); lastHead = head; }
-        const el = g.series ? groupRow(g) : itemRow(m);
+        const el = itemRow(m);
         out.append(el);
         if (TS.focus != null && g.items.some((i) => i.i === TS.focus)) focusEl = el;
       });
       if (focusEl && doScroll) setTimeout(() => { try { focusEl.scrollIntoView({ block: 'center' }); } catch (e) {} }, 30);
       doScroll = false;
-      if (!list.length) out.append(h('p', { class: 'empty' }, 'Nothing matches those filters.'));
+      if (!list.length) out.append(h('p', { class: 'empty' }, 'No results for those filters.'));
     }
     let doScroll = TS.focus != null;
     input.addEventListener('input', debounce(() => { TS.focus = null; build(); }, 140));
     wrap.append(panel('Timeline',
-      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Canon only, in release order. Open Filters for story order (BBY and ABY are before and after the Battle of Yavin), every episode and issue, or a type, era or character.'),
+      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Canon only, in chronological order. BBY and ABY mean before and after the Battle of Yavin. Open Filters to sort by release date or narrow by type, era or character.'),
       input, active, count), out);
     wrap.append(h('div', { class: 'tlfab' }, h('button', { class: 'btn primary', type: 'button', onclick: openMenu }, 'Filters')));
     build();

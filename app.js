@@ -230,7 +230,7 @@
         if (it.group !== g) { g = it.group; if (g) body.append(h('div', { class: 'lbl', style: 'margin-top:14px' }, g)); }
         body.append(h('button', { class: 'pick', type: 'button', onclick: () => { close(); o.onPick(it.id); } }, h('strong', null, it.name), it.sub ? h('span', null, it.sub) : null));
       }
-      if (!list.length) body.append(h('p', { class: 'empty' }, 'Nothing matches that search.'));
+      if (!list.length) body.append(h('p', { class: 'empty' }, 'No results for that search.'));
     }
     input.addEventListener('input', paint);
     paint();
@@ -265,7 +265,7 @@
     });
   }
 
-  /* ---- colour theme: one hue drives every blue shade, brightness stays as designed ---- */
+  /* ---- color theme: one hue drives every blue shade, brightness stays as designed ---- */
   const BASE = { ground: '#040b12', panel: '#0a1a28', 'panel-2': '#0e2436', line: '#1f6784', 'line-2': '#1c4a5e', deep: '#07141f', holo: '#6fe6ff', 'holo-dim': '#4a9bb5', text: '#d9f5ff', muted: '#86b4c6' };
   const hex2rgb = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
   const rgb2hex = (r) => '#' + r.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
@@ -371,8 +371,8 @@
     go(tab || 'sheet');
   }
   function noChar(msg) {
-    return h('div', { class: 'wrap' }, panel('No character selected', h('p', { class: 'sub' }, msg || 'Pick a character from the roster first.'),
-      h('div', { class: 'btns' }, h('button', { class: 'btn primary', type: 'button', onclick: () => go('roster') }, 'Open the roster'))));
+    return h('div', { class: 'wrap' }, panel('No character selected', h('p', { class: 'sub' }, msg || 'Choose a character from the Characters tab first.'),
+      h('div', { class: 'btns' }, h('button', { class: 'btn primary', type: 'button', onclick: () => go('roster') }, 'Open Characters'))));
   }
 
   /* -------------------------------------------------------------- views */
@@ -570,7 +570,7 @@
 
   const GEN_SECT = [['basics', 'Character'], ['notes', 'Notes']];
   function viewBuild() {
-    const c = cur(); if (!c) return noChar('Start a new character from the roster, or open one to edit it.');
+    const c = cur(); if (!c) return noChar('Start a new character from the Characters tab, or open one to edit it.');
     const wrap = h('div', { class: 'wrap' });
     const SECTIONS = isSW(c) ? SW_SECT : GEN_SECT;
     if (S.sec !== 'sheet' && !SECTIONS.some((x) => x[0] === S.sec)) S.sec = 'basics';
@@ -936,13 +936,13 @@
   BUILD.notes = (c) => [panel('Notes', textBind(c, c.notes, 'general', { label: 'Anything else', rows: 12, ph: 'Backstory, session notes, plans, loose ideas.' }))];
 
   /* ---- holopedia ---- */
-  const HOLO = [['species', 'Species'], ['classes', 'Classes'], ['planets', 'Planets'], ['aurabesh', 'Aurabesh'], ['words', 'Words']];
+  const HOLO = [['species', 'Species'], ['classes', 'Classes'], ['planets', 'Planets'], ['aurabesh', 'Aurebesh'], ['words', 'Words']];
 
   function viewHolo() {
     const wrap = h('div', { class: 'wrap' });
     wrap.append(h('div', { class: 'chips', role: 'group', 'aria-label': 'Holopedia sections' }, HOLO.map(([id, label]) =>
       h('button', { class: 'chip', type: 'button', 'aria-pressed': String(S.holo === id), onclick: () => { S.holo = id; render(true); } }, label))));
-    if (S.holo === 'aurabesh') wrap.append(holoAurabesh());
+    if (S.holo === 'aurabesh') wrap.append(holoAurebesh());
     else if (S.holo === 'words') wrap.append(holoWords());
     else if (S.holo === 'planets') wrap.append(holoPlanets());
     else wrap.append(holoEntries(S.holo));
@@ -1011,13 +1011,13 @@
     return h('div', { class: 'wrap', style: 'gap:14px' }, out);
   }
 
-  function holoAurabesh() {
-    const input = h('input', { type: 'text', id: 'typer', placeholder: 'Type here to see it in Aurabesh', autocomplete: 'off', autocapitalize: 'off' });
+  function holoAurebesh() {
+    const input = h('input', { type: 'text', id: 'typer', placeholder: 'Type here to see it in Aurebesh', autocomplete: 'off', autocapitalize: 'off' });
     const out = h('div', { class: 'aur', style: 'font-size:1.6rem;color:var(--holo);white-space:normal;line-height:1.5;min-height:2.4rem;margin-top:8px', 'aria-hidden': 'true' }, 'aurabesh');
     input.addEventListener('input', () => { out.textContent = input.value; });
     const wrap = h('div', { class: 'wrap' });
-    wrap.append(panel('Aurabesh typer', field('Your text', input, 'typer'), out,
-      h('p', { class: 'sub' }, S.fontOK ? 'Capital letters use the mirrored forms, so this chart and the headers show everything in lowercase.' : 'The Aurabesh font did not load, so the glyphs are hidden. Check Settings.')));
+    wrap.append(panel('Aurebesh typer', field('Your text', input, 'typer'), out,
+      h('p', { class: 'sub' }, S.fontOK ? 'Capital letters use the mirrored forms, so this chart and the headers show everything in lowercase.' : 'The Aurebesh font did not load, so the glyphs are hidden. Check Settings.')));
     const grid = h('div', { class: 'alpha' }, L.aurabesh.map((a) =>
       h('div', { class: 'glyph' }, h('div', { class: 'g', 'aria-hidden': 'true' }, a.en), h('b', null, a.n), h('small', null, a.en))));
     wrap.append(panel('The alphabet', h('p', { class: 'sub' }, 'Thirty-four letters. Each name is followed by its English equivalent. Letters with two-letter equivalents are drawn here as that spelling.'), grid));
@@ -1064,12 +1064,12 @@
       list.replaceChildren(...hit.map((g) => h('div', { class: 'gloss' },
         h('div', { class: 'ghead' }, h('h3', null, g.w, h('span', { class: 'aur', 'aria-hidden': 'true' }, g.w))),
         h('p', { class: 'gtext' }, g.mean, g.note ? h('span', { class: 'sub' }, ' ' + g.note) : null, h('span', { class: 'gmeta' }, ' ' + g.lang + ' · ' + g.tags.join(', '))))));
-      if (!hit.length) list.append(h('p', { class: 'empty' }, 'No words match those filters. Clear a filter to see more.'));
+      if (!hit.length) list.append(h('p', { class: 'empty' }, 'No words match those filters. Remove a filter to see more.'));
       count.textContent = hit.length + ' of ' + G.length + ' words';
       fbtn.textContent = nActive() ? 'Filters (' + nActive() + ')' : 'Filters';
     }
     paintChips(); paint();
-    return h('div', { class: 'wrap' }, panel('Words and curses',
+    return h('div', { class: 'wrap' }, panel('Words and Phrases',
       field('Search', q, 'wq'), h('div', { style: 'display:flex;gap:10px;align-items:center;margin:8px 0' }, fbtn, count), list));
   }
 
@@ -1114,9 +1114,9 @@
     const save = () => dbPut('meta', 'cfg', S.cfg);
 
     const curHue = typeof S.cfg.hue === 'number' ? S.cfg.hue : BASE_HUE;
-    const slider = h('input', { type: 'range', min: 0, max: 360, step: 1, value: Math.round(curHue), class: 'hue', 'aria-label': 'Colour hue' });
-    const hexIn = h('input', { type: 'text', class: 'hexin', maxlength: 7, autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Hex colour code' });
-    const sw = h('input', { type: 'color', class: 'swatch', 'aria-label': 'Pick a colour' });
+    const slider = h('input', { type: 'range', min: 0, max: 360, step: 1, value: Math.round(curHue), class: 'hue', 'aria-label': 'Color hue' });
+    const hexIn = h('input', { type: 'text', class: 'hexin', maxlength: 7, autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Hex color code' });
+    const sw = h('input', { type: 'color', class: 'swatch', 'aria-label': 'Pick a color' });
     sw.addEventListener('input', () => { const [hh, s] = rgb2hsl(hex2rgb(sw.value)); if (s < 0.05) return; S.cfg.hue = Math.round(hh); slider.value = S.cfg.hue; const x = applyTheme(); hexIn.value = x.toUpperCase(); });
     sw.addEventListener('change', save);
     const show = () => { const x = applyTheme(); hexIn.value = x.toUpperCase(); sw.value = x; };
@@ -1127,7 +1127,7 @@
       if (/^#[0-9a-fA-F]{3}$/.test(v)) v = '#' + v.slice(1).split('').map((ch) => ch + ch).join('');
       if (!/^#[0-9a-fA-F]{6}$/.test(v)) { toast('Enter a hex code like #6FE6FF.'); show(); return; }
       const [hh, s] = rgb2hsl(hex2rgb(v));
-      if (s < 0.05) { toast('That colour is grey. Pick one with some colour in it.'); show(); return; }
+      if (s < 0.05) { toast('That color is grey. Pick one with some color in it.'); show(); return; }
       S.cfg.hue = Math.round(hh); slider.value = S.cfg.hue; show(); save();
     });
     const reset = h('button', { class: 'btn sm', type: 'button', onclick: () => { delete S.cfg.hue; slider.value = Math.round(BASE_HUE); show(); save(); } }, 'Reset');
@@ -1137,10 +1137,10 @@
     file.addEventListener('change', async () => { const f = file.files && file.files[0]; if (f) await importAll(await f.text()); file.value = ''; });
 
     wrap.append(panel('Settings',
-      h('div', { class: 'lbl' }, 'Colour'),
+      h('div', { class: 'lbl' }, 'Color'),
       slider,
       h('div', { class: 'srow' }, sw, hexIn, reset),
-      toggle('Aurabesh under headings', !!S.cfg.aur, (v) => { S.cfg.aur = v; save(); applyAur(); }),
+      toggle('Aurebesh under headings', !!S.cfg.aur, (v) => { S.cfg.aur = v; save(); applyAur(); }),
       toggle('Reduce motion', document.body.classList.contains('calm'), (v) => { S.cfg.calm = v; save(); applyMotion(); }),
       h('div', { class: 'lbl', style: 'margin-top:6px' }, 'Backup'),
       h('div', { class: 'btns' },
@@ -1151,7 +1151,7 @@
         } }, 'Download'),
         h('button', { class: 'btn', type: 'button', onclick: () => file.click() }, 'Restore'), file),
       !S.ok ? h('div', { class: 'note' }, 'This browser is not saving between visits. Back up before you close the app.') : null,
-      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 31.')));
+      h('p', { class: 'sub', style: 'margin:6px 0 0;font-size:.75rem' }, 'Unofficial fan tool. Rules from the SW5e community database. Star Wars is a trademark of Lucasfilm Ltd. Aurebesh font by Pixel Sagas. Version 32.')));
     return wrap;
   }
 
@@ -1169,7 +1169,7 @@
     wrap.append(...Array.from(body.childNodes));
     return wrap;
   }
-  const VIEWS = { index: holopedia, timeline: () => (window.CANON ? window.CANON.viewTimeline() : h('div', { class: 'wrap' }, panel('Timeline', h('p', { class: 'sub' }, 'The canon timeline is not part of this preview. Open the installed app or the Netlify site.')))), roster: viewRoster, build: viewBuild, settings: viewSettings };
+  const VIEWS = { index: holopedia, timeline: () => (window.CANON ? window.CANON.viewTimeline() : h('div', { class: 'wrap' }, panel('Timeline', h('p', { class: 'sub' }, 'The canon timeline is not part of this preview. Open the installed app.')))), roster: viewRoster, build: viewBuild, settings: viewSettings };
 
   /* --------------------------------------------------------------- boot */
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.installEvt = e; });
