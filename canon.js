@@ -90,7 +90,7 @@
 
   /* ---------- shared bits ---------- */
   const ST = { kind: 'char', q: '', filters: {}, shown: 40, detail: null, stack: [], from: '', more: {} };
-  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: false }, era: -1, char: null, q: '', order: 'universe', shown: 80, mode: 'overview', open: new Set(), seen: false };
+  const TS = { types: { film: true, tv: true, comic: true, book: true, story: true, game: true, event: false }, era: -1, char: null, q: '', order: 'release', shown: 80, mode: 'overview', open: new Set(), seen: false };
 
   function title() { return ST.detail != null && BYID[ST.detail] ? BYID[ST.detail].n || BYID[ST.detail].t : 'The Holopedia'; }
   function hasDetail() { return ST.detail != null; }
@@ -193,6 +193,24 @@
       loadErr ? h('p', { class: 'note' }, loadErr) : h('p', { class: 'sub' }, progress || 'Preparing the canon index…')));
   }
 
+  /* endless scroll: render a first batch, then more as the end comes into view */
+  function lazy(box, items, make, first, step) {
+    let n = 0;
+    const sent = h('div', { class: 'sentinel', 'aria-hidden': 'true' });
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) fill(); }, { rootMargin: '700px' });
+    function more() {
+      const end = Math.min(items.length, n + (n ? step : first));
+      for (; n < end; n++) box.append(make(items[n], n));
+      if (n >= items.length) { io.disconnect(); sent.remove(); } else box.append(sent);
+    }
+    function fill() {
+      more();
+      requestAnimationFrame(() => { if (sent.isConnected && n < items.length && sent.getBoundingClientRect().top < window.innerHeight + 700) fill(); });
+    }
+    more();
+    if (n < items.length) io.observe(sent);
+  }
+
   function viewIndex() {
     if (!ready) { if (!loadErr) load(); return loadingView(); }
     if (ST.detail != null) return viewDetail(ST.detail);
@@ -216,8 +234,7 @@
       }
       count.textContent = items.length.toLocaleString() + (items.length === 1 ? ' entry' : ' entries') + (q ? '' : ', most featured first');
       results.replaceChildren();
-      items.slice(0, ST.shown).forEach((e) => results.append(row(e)));
-      if (items.length > ST.shown) results.append(h('button', { class: 'btn', type: 'button', style: 'width:100%', onclick: () => { ST.shown += 60; list(); } }, 'Show more'));
+      lazy(results, items, (e) => row(e), 40, 60);
       if (!items.length) results.append(h('p', { class: 'empty' }, 'Nothing matches. Try fewer letters or clear a filter.'));
       active.replaceChildren(...Object.keys(ST.filters).map((f) => {
         const lab = FILTERS[ST.kind].find((x) => x[0] === f);
@@ -268,9 +285,8 @@
     return h('button', { class: 'lnk', type: 'button', onclick: () => open(id) }, e.n || e.t);
   }
   function moreList(key, ids, make, cap) {
-    const shown = ST.more[key] ? ids.length : cap;
-    const box = h('div', { class: 'linkcloud' }, ids.slice(0, shown).map(make));
-    if (ids.length > shown) box.append(h('button', { class: 'lnk dim', type: 'button', onclick: () => { ST.more[key] = true; DP.render(); } }, '+ ' + (ids.length - shown) + ' more'));
+    const box = h('div', { class: 'linkcloud' });
+    lazy(box, ids, (id) => make(id), cap, 40);
     return box;
   }
 
@@ -302,15 +318,14 @@
     const apps = APPEARS.get(id);
     if (apps && e.k !== 'media') {
       const sorted = sortMedia(apps);
-      wrap.append(panel('Appears in (' + sorted.length + ')', h('div', { class: 'list' }, sorted.slice(0, ST.more.apps ? sorted.length : 25).map((m) =>
-        h('button', { class: 'crow slim', type: 'button', onclick: () => open(m.i) }, h('strong', null, m.n || m.t), h('span', { class: 'sub' }, subline(m))))),
-        sorted.length > 25 && !ST.more.apps ? h('button', { class: 'btn sm', type: 'button', style: 'margin-top:8px', onclick: () => { ST.more.apps = true; DP.render(); } }, 'Show all ' + sorted.length) : null));
+      wrap.append(panel('Appears in (' + sorted.length + ')', (() => { const box = h('div', { class: 'list' }); lazy(box, sorted, (m) => h('button', { class: 'crow slim', type: 'button', onclick: () => open(m.i) }, h('strong', null, m.n || m.t), h('span', { class: 'sub' }, subline(m))), 25, 40); return box; })()));
     }
     return wrap;
   }
 
   /* ---------- Timeline ---------- */
-  const BADGE = { film: ['M', 'Movie'], tv: ['T', 'TV show'], comic: ['C', 'Comic'], book: ['B', 'Book'], story: ['S', 'Short story'], game: ['G', 'Game'], event: ['E', 'Event'] };
+  const PLURAL = { film: 'Movies', tv: 'TV Shows', comic: 'Comics', book: 'Books', story: 'Stories', game: 'Games', event: 'Events' };
+  const BADGE = { film: ['M', 'Movie'], tv: ['T', 'TV show'], comic: ['C', 'Comic'], book: ['B', 'Book'], story: ['S', 'Story'], game: ['G', 'Game'], event: ['E', 'Event'] };
   const TYPE_RANK = { film: 0, tv: 1, event: 2, game: 3, comic: 4, book: 5, story: 6 };
   const ERA_LO = [-1e9, -25000, -500, -100, -19, 0, 5, 34];
   const eraOf = (y) => { let n = 0; ERA_LO.forEach((lo, i) => { if (y >= lo) n = i; }); return n; };
@@ -329,19 +344,8 @@
     const wrap = h('div', { class: 'wrap' });
     const out = h('div', { class: 'tl' });
     const count = h('p', { class: 'sub', style: 'margin:0' });
+    const active = h('div', { class: 'chips wrapchips' });
     const input = h('input', { type: 'search', placeholder: 'Search titles or series', 'aria-label': 'Search the timeline', value: TS.q, autocomplete: 'off' });
-    const rerender = () => { TS.focus = null; DP.render(); };
-    const typeChips = h('div', { class: 'chips wrapchips' }, ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'].map((t) =>
-      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; rerender(); } }, badge(t), ' ' + BADGE[t][1] + (t === 'tv' ? 's' : 's'))));
-    const modeChips = h('div', { class: 'chips' }, [['overview', 'Overview'], ['all', 'Every episode & issue']].map(([m, l]) =>
-      h('button', { class: 'chip', type: 'button', 'aria-pressed': String(TS.mode === m), onclick: () => { TS.mode = m; rerender(); } }, l)));
-    const eraSel = DP.selectEl([{ v: -1, t: 'All eras' }].concat(ERA().map((n, i) => ({ v: i, t: n }))), TS.era, (v) => { TS.era = +v; TS.focus = null; build(); }, { 'aria-label': 'Era' });
-    const orderBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => { TS.order = TS.order === 'universe' ? 'release' : 'universe'; rerender(); } },
-      TS.order === 'universe' ? 'Order: story time' : 'Order: release date');
-    const charBtn = h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; rerender(); }, 'Search characters') },
-      TS.char != null ? 'Character: ' + (BYID[TS.char].n || BYID[TS.char].t) + '  ×' : 'Pick a character');
-    if (TS.char != null) charBtn.onclick = () => { TS.char = null; rerender(); };
-
     const uni = () => TS.order === 'universe';
     const keyYear = (m) => (uni() ? m.y[0] : +m.r.slice(0, 4));
     const cmp = (a, b) => uni()
@@ -403,8 +407,42 @@
       return row;
     }
 
-    const autoScroll = !TS.seen; TS.seen = true;
-    let doScroll = autoScroll;
+    const TYPES = ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'];
+    function summary() {
+      active.replaceChildren();
+      const add = (t, fn) => active.append(h('button', { class: 'chip on', type: 'button', onclick: () => { fn(); build(); } }, t + '  \u00d7'));
+      if (uni()) add('Story Order', () => { TS.order = 'release'; });
+      if (TS.mode === 'all') add('Every Entry', () => { TS.mode = 'overview'; });
+      if (TS.era >= 0) add(ERA()[TS.era], () => { TS.era = -1; });
+      if (TS.char != null) add(BYID[TS.char].n || BYID[TS.char].t, () => { TS.char = null; });
+      const changed = TYPES.some((t) => !!TS.types[t] !== (t !== 'event'));
+      if (changed) add(TYPES.filter((t) => TS.types[t]).map((t) => PLURAL[t]).join(', '), () => { TYPES.forEach((t) => { TS.types[t] = t !== 'event'; }); });
+    }
+    function openMenu() {
+      const body = h('div', null);
+      const close = () => scrim.remove();
+      const scrim = h('div', { class: 'scrim fsheet', role: 'dialog', 'aria-label': 'Timeline filters' }, h('div', { class: 'fcard', style: 'padding:14px' }, body));
+      scrim.addEventListener('click', (e) => { if (e.target === scrim) close(); });
+      const pick2 = (label, opts, val, set) => h('label', { class: 'mrow' }, h('span', null, label),
+        DP.selectEl(opts.map(([v, t]) => ({ v, t })), val, (v) => { set(v); build(); paint(); }, { 'aria-label': label }));
+      function paint() {
+        body.replaceChildren(
+          h('h3', { style: 'color:var(--holo);margin-bottom:8px' }, 'Filters'),
+          pick2('Order', [['release', 'Release Date'], ['universe', 'Story Order']], TS.order, (v) => { TS.order = v; }),
+          pick2('Show', [['overview', 'Movies & Shows'], ['all', 'Every Entry']], TS.mode, (v) => { TS.mode = v; }),
+          pick2('Era', [[-1, 'All Eras']].concat(ERA().map((n, i) => [i, n])), TS.era, (v) => { TS.era = +v; }),
+          h('label', { class: 'mrow' }, h('span', null, 'Character'),
+            h('button', { class: 'btn sm', type: 'button', onclick: () => pickEntity(['char', 'droid'], (e) => { TS.char = e.i; build(); paint(); }, 'Search characters') }, TS.char != null ? (BYID[TS.char].n || BYID[TS.char].t) : 'Any')),
+          h('div', { class: 'lbl', style: 'margin-top:10px' }, 'Types' + (TS.mode === 'overview' ? ' (Every Entry adds comics, books, games and stories)' : '')),
+          h('div', { class: 'chips wrapchips' }, TYPES.filter((t) => TS.mode !== 'overview' || t === 'film' || t === 'tv' || t === 'event').map((t) =>
+            h('button', { class: 'chip', type: 'button', 'aria-pressed': String(!!TS.types[t]), onclick: () => { TS.types[t] = !TS.types[t]; build(); paint(); } }, PLURAL[t]))),
+          h('div', { class: 'btns', style: 'margin-top:12px' },
+            h('button', { class: 'btn', type: 'button', onclick: () => { TS.order = 'release'; TS.mode = 'overview'; TS.era = -1; TS.char = null; TYPES.forEach((t) => { TS.types[t] = t !== 'event'; }); build(); paint(); } }, 'Reset'),
+            h('button', { class: 'btn primary', type: 'button', onclick: close }, 'Done')));
+      }
+      paint(); document.body.append(scrim);
+    }
+
     function build() {
       TS.q = input.value;
       const q = input.value.trim().toLowerCase(), toks = q.split(/\s+/).filter(Boolean);
@@ -415,41 +453,34 @@
       if (TS.char != null) { const ok = new Set(APPEARS.get(TS.char) || []); items = items.filter((m) => ok.has(m.i)); }
       if (toks.length) items = items.filter((m) => toks.every((t) => (m._key + ' ' + (m.s || '').toLowerCase()).indexOf(t) >= 0));
       if (TS.era >= 0) items = items.filter((m) => m.er && m.er.indexOf(TS.era) >= 0);
-      let dated, undated;
-      if (uni()) { dated = items.filter((m) => m.y); }
-      else { dated = items.filter((m) => m.r && m.k === 'media'); }
-      undated = items.length - dated.length;
+      const dated = uni() ? items.filter((m) => m.y) : items.filter((m) => m.r && m.k === 'media');
+      const undated = items.length - dated.length;
       dated.sort(cmp);
       const list = TS.mode === 'overview' ? groups(dated) : dated.map((m) => ({ items: [m], start: m }));
       count.textContent = (TS.mode === 'overview' ? list.length.toLocaleString() + ' entries (' + dated.length.toLocaleString() + ' episodes, issues and more)' : dated.length.toLocaleString() + ' entries') +
         (undated ? ', ' + undated.toLocaleString() + ' without a ' + (uni() ? 'story date' : 'release date') : '');
+      summary();
       out.replaceChildren();
-      let lastHead = '', lastEra = -1, anchor = null, focusEl = null;
+      let lastHead = '', lastEra = -1, focusEl = null;
       list.forEach((g) => {
-        const m = g.start, key = keyYear(m);
+        const m = g.start;
         if (uni()) { const en = eraOf(m.y[0]); if (en !== lastEra) { out.append(h('div', { class: 'tlera' }, ERA()[en])); lastEra = en; } }
         const head = uni() ? fy(m.y[0]) : m.r.slice(0, 4);
         if (head !== lastHead) { out.append(h('div', { class: 'tlhead' }, head)); lastHead = head; }
         const el = g.series ? groupRow(g) : itemRow(m);
-        if (!anchor && m.t === 'Star Wars: Episode I The Phantom Menace' && uni()) anchor = out.lastChild.previousSibling && out.lastChild.previousSibling.classList.contains('tlhead') ? out.lastChild.previousSibling : null;
         out.append(el);
-        if (!anchor && !uni() && key >= 1999) anchor = out.querySelector('.tlhead:last-of-type');
         if (TS.focus != null && g.items.some((i) => i.i === TS.focus)) focusEl = el;
       });
-      if (!anchor && uni()) { const hs = out.querySelectorAll('.tlhead'); hs.forEach((hd) => { if (!anchor && /BBY|ABY/.test(hd.textContent)) { const y = parseInt(hd.textContent, 10) * (/BBY/.test(hd.textContent) ? -1 : 1); if (y >= -32) anchor = hd; } }); }
-      const target = focusEl || anchor;
-      const sc = doScroll; doScroll = false;
-      if (target && sc) setTimeout(() => { try { target.scrollIntoView({ block: 'start' }); } catch (e) {} }, 30);
-      if (list.length) out.append(h('div', { class: 'tlfab' },
-        h('button', { class: 'btn sm', type: 'button', onclick: () => wrap.scrollIntoView({ block: 'start' }) }, '↑ Filters'),
-        anchor ? h('button', { class: 'btn sm', type: 'button', onclick: () => anchor.scrollIntoView({ block: 'start' }) }, '★ Episode I') : null));
+      if (focusEl && doScroll) setTimeout(() => { try { focusEl.scrollIntoView({ block: 'center' }); } catch (e) {} }, 30);
+      doScroll = false;
       if (!list.length) out.append(h('p', { class: 'empty' }, 'Nothing matches those filters.'));
     }
+    let doScroll = TS.focus != null;
     input.addEventListener('input', debounce(() => { TS.focus = null; build(); }, 140));
-    const legend = h('div', { class: 'tllegend' }, ['film', 'tv', 'comic', 'book', 'story', 'game', 'event'].map((t) => h('span', null, badge(t), BADGE[t][1])));
     wrap.append(panel('Timeline',
-      h('p', { class: 'sub', style: 'margin:0 0 8px' }, (TS.mode === 'overview' ? 'Overview shows movies and shows as a whole; tap a show to see its episodes in story order (shows that jump across eras are listed episode by episode). Switch to Every episode & issue for comics, books, games and stories. ' : '') + 'Canon only, in story order (BBY and ABY are before and after the Battle of Yavin) or by release date. It opens at The Phantom Menace; scroll up for earlier or down for later.'),
-      modeChips, input, typeChips, h('div', { class: 'tlctl' }, eraSel, orderBtn, charBtn), count, legend), out);
+      h('p', { class: 'sub', style: 'margin:0 0 8px' }, 'Canon only, in release order. Open Filters for story order (BBY and ABY are before and after the Battle of Yavin), every episode and issue, or a type, era or character.'),
+      input, active, count), out);
+    wrap.append(h('div', { class: 'tlfab' }, h('button', { class: 'btn primary', type: 'button', onclick: openMenu }, 'Filters')));
     build();
     return wrap;
   }
